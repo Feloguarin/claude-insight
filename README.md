@@ -21,6 +21,12 @@ Claude Insight parses your local Claude Code transcript files and generates:
 
 ## 📦 Installation
 
+### One-liner (recommended)
+```bash
+curl -fsSL https://raw.githubusercontent.com/Feloguarin/claude-insight/main/install.sh | bash
+```
+
+### Manual
 ```bash
 # Clone the repository
 git clone https://github.com/Feloguarin/claude-insight.git

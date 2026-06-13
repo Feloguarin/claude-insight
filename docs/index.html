@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Insight — Understand How You Build</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        
+        /* Hero */
+        .hero {
+            padding: 80px 0 60px;
+            text-align: center;
+            border-bottom: 1px solid #1a1a2e;
+        }
+        
+        .logo {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .tagline {
+            font-size: 20px;
+            color: #8892b0;
+            margin-bottom: 40px;
+        }
+        
+        .install-box {
+            background: #12121f;
+            border: 1px solid #2d2d44;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 0 auto 24px;
+            max-width: 600px;
+            text-align: left;
+        }
+        
+        .install-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #667eea;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+        
+        .install-command {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 14px;
+            color: #a8b2d1;
+            background: #0a0a12;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #1e1e2e;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .install-command:hover {
+            border-color: #667eea;
+        }
+        
+        .install-command::before {
+            content: '$ ';
+            color: #667eea;
+        }
+        
+        .copy-hint {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 11px;
+            color: #667eea;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .install-command:hover .copy-hint {
+            opacity: 1;
+        }
+        
+        .install-command.copied {
+            border-color: #4ade80;
+        }
+        
+        .install-command.copied::after {
+            content: 'Copied!';
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #4ade80;
+            font-size: 11px;
+        }
+        
+        .requirements {
+            font-size: 13px;
+            color: #555;
+            margin-top: 12px;
+        }
+        
+        .requirements span {
+            color: #8892b0;
+        }
+        
+        /* Features */
+        .features {
+            padding: 60px 0;
+            border-bottom: 1px solid #1a1a2e;
+        }
+        
+        .features h2 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #667eea;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 32px;
+        }
+        
+        .feature {
+            padding: 24px;
+            background: #12121f;
+            border-radius: 12px;
+            border: 1px solid #1e1e2e;
+            transition: border-color 0.2s;
+        }
+        
+        .feature:hover {
+            border-color: #2d2d44;
+        }
+        
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+        
+        .feature h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: #e0e0e0;
+        }
+        
+        .feature p {
+            font-size: 14px;
+            color: #8892b0;
+            line-height: 1.6;
+        }
+        
+        /* How it works */
+        .how-it-works {
+            padding: 60px 0;
+            border-bottom: 1px solid #1a1a2e;
+        }
+        
+        .how-it-works h2 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #667eea;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        
+        .steps {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            padding: 20px;
+            background: #12121f;
+            border-radius: 12px;
+            border: 1px solid #1e1e2e;
+        }
+        
+        .step-number {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        
+        .step-content h3 {
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+        
+        .step-content p {
+            font-size: 14px;
+            color: #8892b0;
+        }
+        
+        /* Archetypes */
+        .archetypes {
+            padding: 60px 0;
+            border-bottom: 1px solid #1a1a2e;
+        }
+        
+        .archetypes h2 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #667eea;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        
+        .archetype-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+        }
+        
+        .archetype {
+            text-align: center;
+            padding: 20px;
+            background: #12121f;
+            border-radius: 12px;
+            border: 1px solid #1e1e2e;
+        }
+        
+        .archetype-emoji {
+            font-size: 36px;
+            margin-bottom: 8px;
+        }
+        
+        .archetype h3 {
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        
+        .archetype p {
+            font-size: 12px;
+            color: #8892b0;
+        }
+        
+        /* Footer */
+        .footer {
+            padding: 40px 0;
+            text-align: center;
+            color: #555;
+            font-size: 14px;
+        }
+        
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .github-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #12121f;
+            border: 1px solid #2d2d44;
+            color: #e0e0e0;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 14px;
+            margin-top: 16px;
+            transition: border-color 0.2s;
+        }
+        
+        .github-button:hover {
+            border-color: #667eea;
+        }
+        
+        /* Responsive */
+        @media (max-width: 600px) {
+            h1 { font-size: 32px; }
+            .tagline { font-size: 16px; }
+            .install-command { font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <div class="container">
+            <div class="logo">🧠</div>
+            <h1>Claude Insight</h1>
+            <p class="tagline">Local AI coding session analyzer. Privacy-first. Understand how you build.</p>
+            
+            <div class="install-box">
+                <div class="install-label">Install in seconds</div>
+                <div class="install-command" onclick="copyCommand(this)">
+                    curl -fsSL https://raw.githubusercontent.com/Feloguarin/claude-insight/main/install.sh | bash
+                    <span class="copy-hint">Click to copy</span>
+                </div>
+                <div class="requirements">
+                    Requires: <span>Python 3.8+</span> &nbsp;|&nbsp; Works on: <span>macOS, Linux, WSL</span>
+                </div>
+            </div>
+            
+            <a href="https://github.com/Feloguarin/claude-insight" class="github-button">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                View on GitHub
+            </a>
+        </div>
+    </div>
+    
+    <div class="features">
+        <div class="container">
+            <h2>What it does</h2>
+            <div class="feature-grid">
+                <div class="feature">
+                    <div class="feature-icon">📊</div>
+                    <h3>10+ Metrics</h3>
+                    <p>Extract efficiency, planning ratio, refactoring rate, bug density, and more from every session.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🧬</div>
+                    <h3>Builder Archetypes</h3>
+                    <p>Are you an Architect, Sprinter, Debugger, Collaborator, or Autonomous Agent? Find out with confidence scores.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📈</div>
+                    <h3>Trend Analysis</h3>
+                    <p>Track how your coding patterns evolve across sessions. Spot improvements and regressions.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📄</div>
+                    <h3>Rich Reports</h3>
+                    <p>Generate beautiful terminal dashboards and shareable HTML reports with charts and insights.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔒</div>
+                    <h3>100% Local</h3>
+                    <p>Zero network calls. Your code never leaves your machine. Read-only, never modifies source files.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Zero Config</h3>
+                    <p>Works out of the box with Claude Code's JSONL format. No setup, no accounts, no API keys.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="how-it-works">
+        <div class="container">
+            <h2>How it works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Parse</h3>
+                        <p>Reads Claude Code JSONL transcripts from ~/.claude/projects/ — every message, tool call, and file edit.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Analyze</h3>
+                        <p>Extracts metrics like token efficiency, planning ratio, and iteration speed using local computation.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Profile</h3>
+                        <p>Assigns builder archetypes based on your patterns — with confidence scores and trait breakdowns.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h3>Report</h3>
+                        <p>Generates terminal dashboards or HTML reports with visualizations you can save and share.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="archetypes">
+        <div class="container">
+            <h2>Builder Archetypes</h2>
+            <div class="archetype-grid">
+                <div class="archetype">
+                    <div class="archetype-emoji">🏗️</div>
+                    <h3>Architect</h3>
+                    <p>High planning ratio, low code churn, systematic approach</p>
+                </div>
+                <div class="archetype">
+                    <div class="archetype-emoji">⚡</div>
+                    <h3>Sprinter</h3>
+                    <p>High velocity, rapid iterations, minimal planning</p>
+                </div>
+                <div class="archetype">
+                    <div class="archetype-emoji">🔍</div>
+                    <h3>Debugger</h3>
+                    <p>High test ratio, methodical, quality-focused</p>
+                </div>
+                <div class="archetype">
+                    <div class="archetype-emoji">🤝</div>
+                    <h3>Collaborator</h3>
+                    <p>Balanced, iterative feedback, team-oriented</p>
+                </div>
+                <div class="archetype">
+                    <div class="archetype-emoji">🤖</div>
+                    <h3>Autonomous Agent</h3>
+                    <p>High delegation, human oversight only</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <div class="container">
+            <p>Built for developers who want to understand their coding patterns.</p>
+            <p style="margin-top: 8px;">
+                <a href="https://github.com/Feloguarin/claude-insight">GitHub</a> &nbsp;·&nbsp;
+                <a href="https://github.com/Feloguarin/claude-insight/issues">Issues</a> &nbsp;·&nbsp;
+                <a href="https://github.com/Feloguarin/claude-insight/blob/main/README.md">Docs</a>
+            </p>
+            <p style="margin-top: 16px; font-size: 12px; color: #333;">
+                MIT License · No data collection · No accounts required
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        function copyCommand(el) {
+            const text = el.textContent.replace('Click to copy', '').trim();
+            navigator.clipboard.writeText(text).then(() => {
+                el.classList.add('copied');
+                setTimeout(() => el.classList.remove('copied'), 2000);
+            });
+        }
+    </script>
+</body>
+</html>
