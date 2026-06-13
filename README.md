@@ -38,6 +38,41 @@ different local model with `--model` (e.g. `--model llama3.2:3b`) or skip the
 AI entirely with `--no-ai`. The numeric metrics are always computed
 deterministically; the model only provides judgement and prose.
 
+### Two ways to get AI analysis
+
+| You're using…        | How analysis runs                                             |
+| -------------------- | ------------------------------------------------------------- |
+| **Claude Code**      | The `/ai-fluency` **skill** — Claude Code itself does the analysis (no extra model) |
+| **The standalone CLI** | A local Ollama model (default `gemma3:4b`), or heuristics as fallback |
+
+Both keep everything on your machine.
+
+## 🧩 Use it as a Claude Code skill
+
+This repo ships a Claude Code skill at `.claude/skills/ai-fluency/`. Inside
+Claude Code, just run:
+
+```
+/ai-fluency
+/ai-fluency --dir ~/.claude/projects
+/ai-fluency --mock
+```
+
+The skill runs the deterministic data engine (`claude-insight --json`) and then
+**Claude Code performs the qualitative AI-fluency analysis itself** — archetype,
+strengths, growth edges, and personalized recommendations grounded in your
+actual prompts. No separate model, no API key, no Ollama required. The skill is
+also auto-discovered when you ask Claude Code to "analyze my AI fluency" or
+"profile how I use Claude Code".
+
+### Data export
+
+The JSON the skill consumes is available directly:
+
+```bash
+claude-insight --json --dir ~/.claude/projects   # metrics + sample prompts, to stdout
+```
+
 ## 📦 Installation
 
 ### One-liner (recommended)
@@ -122,7 +157,11 @@ claude_insight/
 │   ├── metrics.py   # Deterministic metric computation & scoring
 │   └── llm.py       # Local LLM analysis via Ollama (archetype, summary, tips)
 ├── reports/         # HTML & terminal report generation
-└── cli.py           # Command-line interface
+└── cli.py           # Command-line interface (incl. --json export)
+
+.claude/skills/ai-fluency/   # Claude Code skill: Claude Code does the analysis
+├── SKILL.md
+└── scripts/collect.py       # Emits metrics + sample prompts as JSON
 ```
 
 ## 📈 Metrics Computed

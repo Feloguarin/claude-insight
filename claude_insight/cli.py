@@ -5,7 +5,9 @@ Command-line interface.
 """
 
 import argparse
+import json
 import sys
+from dataclasses import asdict
 from pathlib import Path
 
 from claude_insight import __version__
@@ -43,6 +45,12 @@ def main():
     )
 
     parser.add_argument(
+        "--json", action="store_true", dest="json_out",
+        help="Output deterministic metrics + sample prompts as JSON, then exit "
+             "(for the Claude Code skill or other consumers; skips AI enrichment)"
+    )
+
+    parser.add_argument(
         "--no-ai", action="store_true",
         help="Skip the local AI model and use heuristic analysis only"
     )
@@ -59,7 +67,8 @@ def main():
 
     # 2. Handle Mock Data
     if args.mock:
-        print("🧪 Using mock data for analysis...")
+        # Status to stderr so --json keeps stdout pure JSON.
+        print("🧪 Using mock data for analysis...", file=sys.stderr)
         sessions = generate_mock_sessions()
     else:
         # 3. Parse Transcripts
@@ -73,8 +82,15 @@ def main():
             sys.exit(1)
 
     # 4. Analyze (deterministic metrics)
-    print(f"🧐 Analyzing {len(sessions)} session(s)...")
+    if not args.json_out:
+        print(f"🧐 Analyzing {len(sessions)} session(s)...")
     aggregate_metrics = analyzer.analyze_all(sessions)
+
+    # JSON export: emit data for an external analyzer (e.g. the Claude Code
+    # skill) and exit. No AI enrichment — the consumer does the qualitative work.
+    if args.json_out:
+        print(json.dumps(metrics_to_payload(aggregate_metrics, sessions), indent=2))
+        return
 
     # 4b. Enrich with a local AI model (Ollama), if available
     if not args.no_ai:
@@ -91,6 +107,32 @@ def main():
         with open(report_path, "w", encoding="utf-8") as f:
             f.write(html_gen.generate())
         print(f"✨ HTML Report generated: {report_path}")
+
+
+def metrics_to_payload(metrics, sessions, max_prompts=80, max_chars=12000):
+    """Build a JSON-serializable payload of metrics + a sample of prompts.
+
+    Consumed by the Claude Code skill (and any other external analyzer) so the
+    qualitative analysis can be done with full context.
+    """
+    sample_prompts = []
+    total = 0
+    for session in sessions:
+        for msg in session.user_messages:
+            text = (msg.content or "").strip()
+            if not text:
+                continue
+            if total + len(text) > max_chars or len(sample_prompts) >= max_prompts:
+                break
+            sample_prompts.append(text)
+            total += len(text)
+
+    # Drop the LLM-only fields — they're not populated in JSON mode.
+    metrics_dict = asdict(metrics)
+    for key in ("llm_summary", "llm_archetype_reason", "llm_model"):
+        metrics_dict.pop(key, None)
+
+    return {"metrics": metrics_dict, "sample_prompts": sample_prompts}
 
 
 def enrich_with_local_model(metrics, sessions, model=None):
