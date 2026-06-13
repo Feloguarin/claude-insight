@@ -63,7 +63,7 @@ echo "✅ Downloaded to $INSTALL_DIR"
 # Install the package
 echo "🔧 Installing..."
 cd "$INSTALL_DIR"
-python3 -m pip install --user --quiet -e . 2>&1 | grep -v "already satisfied" || true
+python3 -m pip install --user -e . 2>&1 | tail -20
 
 # Create wrapper script
 cat > "$BIN_DIR/claude-insight" << 'EOF'
