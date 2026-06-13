@@ -183,14 +183,8 @@ claude_insight/
 ## 🔧 Development
 
 ```bash
-# Run tests
-pytest
-
-# Run linting
-ruff check .
-
-# Type checking
-mypy claude_insight/
+# Run the test suite (standard library only — no pytest required)
+python -m unittest discover -s tests
 ```
 
 ## 📄 License
