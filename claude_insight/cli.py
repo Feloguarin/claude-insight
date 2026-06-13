@@ -33,14 +33,14 @@ def analyze_command(args):
     
     # Generate report
     if args.format == "html":
-        report = HTMLReport()
-        output = report.generate(metrics, sessions)
+        report = HTMLReport(metrics)
+        output = report.generate()
     elif args.format == "json":
         import json
         output = json.dumps(metrics, indent=2, default=str)
     else:
-        report = TerminalReport()
-        output = report.generate(metrics, sessions)
+        report = TerminalReport(metrics)
+        output = report.generate()
     
     if args.output:
         Path(args.output).write_text(output)
