@@ -1,108 +1,50 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-# Claude Insight - One-line installer
+# Claude Insight — installs the /ai-fluency skill into Claude Code.
 # Usage: curl -fsSL https://raw.githubusercontent.com/Feloguarin/claude-insight/main/install.sh | bash
+#
+# After this, open Claude Code in any folder and run:  /ai-fluency
 
 REPO="Feloguarin/claude-insight"
-INSTALL_DIR="${HOME}/.local/claude-insight"
-BIN_DIR="${HOME}/.local/bin"
+BRANCH="main"
+SKILL_DIR="${HOME}/.claude/skills/ai-fluency"
+WORKFLOW_DIR="${HOME}/.claude/workflows"
 
-echo "🔍 Claude Insight Installer"
-echo "============================"
+echo "🔍 Installing the Claude Insight /ai-fluency skill"
+echo "=================================================="
 
-# Check Python version
-if ! command -v python3 &> /dev/null; then
-    echo "❌ Python 3 is required but not found."
-    echo "   Install Python 3.9+ and try again."
-    exit 1
+# Python 3 is required — the skill runs the bundled engine with it.
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "❌ Python 3 is required but was not found. Install Python 3.8+ and re-run."
+  exit 1
 fi
+echo "✅ python3 found"
 
-PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-REQUIRED_VERSION="3.9"
-
-if [ "$(printf '%s\n' "$REQUIRED_VERSION" "$PYTHON_VERSION" | sort -V | head -n1)" != "$REQUIRED_VERSION" ]; then
-    echo "❌ Python 3.9+ required. Found: $PYTHON_VERSION"
-    exit 1
+# Download the repo into a temp dir (tarball — no git or pip needed).
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+echo "📥 Downloading…"
+if ! curl -fsSL "https://github.com/${REPO}/archive/refs/heads/${BRANCH}.tar.gz" | tar -xz -C "$TMP"; then
+  echo "❌ Download failed. Check your connection and try again."
+  exit 1
 fi
+SRC="${TMP}/claude-insight-${BRANCH}"
 
-echo "✅ Python $PYTHON_VERSION found"
+# Install the skill self-contained: the engine and the framework live next to SKILL.md,
+# and the workflow goes where Claude Code looks for workflows.
+mkdir -p "$SKILL_DIR/reference" "$WORKFLOW_DIR"
+cp "$SRC/insight.py"                          "$SKILL_DIR/insight.py"
+cp "$SRC/reference/ai-fluency-framework.md"   "$SKILL_DIR/reference/ai-fluency-framework.md"
+cp "$SRC/.claude/skills/ai-fluency/SKILL.md"  "$SKILL_DIR/SKILL.md"
+cp "$SRC/.claude/workflows/ai-fluency.js"     "$WORKFLOW_DIR/ai-fluency.js"
 
-# Check for pip
-if ! python3 -m pip --version &> /dev/null 2>&1; then
-    echo "📦 Installing pip..."
-    python3 -m ensurepip --upgrade 2>/dev/null || {
-        echo "❌ Failed to install pip. Please install manually."
-        exit 1
-    }
-fi
-
-echo "✅ pip found"
-
-# Create directories
-mkdir -p "$INSTALL_DIR" "$BIN_DIR"
-
-# Download latest release or clone repo
-echo "📥 Downloading Claude Insight..."
-if command -v git &> /dev/null; then
-    if [ -d "$INSTALL_DIR/.git" ]; then
-        cd "$INSTALL_DIR"
-        git pull --quiet origin main
-    else
-        git clone --depth 1 --quiet "https://github.com/${REPO}.git" "$INSTALL_DIR"
-    fi
-else
-    # Fallback: download tarball
-    curl -fsSL "https://github.com/${REPO}/archive/refs/heads/main.tar.gz" | tar -xz -C /tmp
-    rm -rf "$INSTALL_DIR"
-    mv "/tmp/claude-insight-main" "$INSTALL_DIR"
-fi
-
-echo "✅ Downloaded to $INSTALL_DIR"
-
-# Install the package
-echo "🔧 Installing..."
-cd "$INSTALL_DIR"
-python3 -m pip install --user -e . 2>&1 | tail -20
-
-# Create wrapper script
-cat > "$BIN_DIR/claude-insight" << 'EOF'
-#!/usr/bin/env bash
-exec python3 -m claude_insight "$@"
-EOF
-chmod +x "$BIN_DIR/claude-insight"
-
-# Add to PATH if needed
-if ! echo "$PATH" | grep -q "$BIN_DIR"; then
-    SHELL_RC=""
-    case "$SHELL" in
-        */bash) SHELL_RC="$HOME/.bashrc" ;;
-        */zsh)  SHELL_RC="$HOME/.zshrc" ;;
-        */fish) SHELL_RC="$HOME/.config/fish/config.fish" ;;
-    esac
-
-    if [ -n "$SHELL_RC" ] && [ -f "$SHELL_RC" ]; then
-        echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$SHELL_RC"
-        echo "📝 Added $BIN_DIR to PATH in $SHELL_RC"
-        echo "   Run: source $SHELL_RC"
-    fi
-
-    export PATH="$BIN_DIR:$PATH"
-fi
-
-# Verify installation
-if command -v claude-insight &> /dev/null; then
-    echo ""
-    echo "🎉 Claude Insight installed successfully!"
-    echo ""
-    echo "   Version: $(claude-insight --version 2>/dev/null || echo 'latest')"
-    echo ""
-    echo "🚀 Quick start:"
-    echo "   claude-insight ~/.claude/projects/latest"
-    echo "   claude-insight --help"
-    echo ""
-else
-    echo "⚠️  Installation complete but command not found in PATH"
-    echo "   Add this to your shell profile:"
-    echo "   export PATH=\"$BIN_DIR:\$PATH\""
-fi
+echo "✅ Installed:"
+echo "   • skill    → $SKILL_DIR"
+echo "   • workflow → $WORKFLOW_DIR/ai-fluency.js"
+echo ""
+echo "🎉 Done. Open Claude Code in any folder and run:"
+echo ""
+echo "      /ai-fluency"
+echo ""
+echo "   The report lands in ~/.claude/insight/ai_fluency_report.html"

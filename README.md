@@ -2,26 +2,23 @@
 
 A one-command analysis of how you build with AI. It reads your Claude Code sessions and gives you a fluency score, your builder archetype, a 4-competency skill map, and exactly what to do next — all in one self-contained HTML report.
 
-## ⚡ Run it in 5 seconds (zero install)
+## ⚡ Install in 5 seconds
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Feloguarin/claude-insight/main/insight.py | python3 -
+curl -fsSL https://raw.githubusercontent.com/Feloguarin/claude-insight/main/install.sh | bash
 ```
 
-That's the whole thing. No clone, no pip, no Ollama, no API key. It reads your local
-`~/.claude/projects`, runs the full analysis, writes a deep, kind, self-contained
-`ai_fluency_report.html`, and opens it in your browser.
+This installs the **`/ai-fluency`** skill into Claude Code. Then, inside Claude Code (any
+folder), just run:
 
-> Prefer not to pipe curl into python? Two other one-commands:
-> ```bash
-> # clone & run
-> git clone https://github.com/Feloguarin/claude-insight.git && python3 claude-insight/insight.py
-> ```
-> ```text
-> # already inside Claude Code? just type:
-> /ai-fluency
-> ```
-> Requires Python 3.8+ (already on macOS/Linux). Never modifies your original transcripts.
+```text
+/ai-fluency
+```
+
+That's the whole thing. You get the full run — your fluency score, builder archetype, the
+AI-written 4-competency skill map, and your highest-leverage moves — in one self-contained
+report (`~/.claude/insight/ai_fluency_report.html`). Requires Python 3.8+ and Claude Code;
+never modifies your original transcripts.
 
 ## 🚀 What It Does
 

@@ -5,78 +5,77 @@ argument-hint: "[PATH | --no-open]"
 allowed-tools: Bash(python3 *), Read, Write, Workflow
 ---
 
-# AI Fluency Analysis — one command, two-model depth
+# AI Fluency Analysis — one command, full run
 
 You produce a reliable AI-fluency **skill map** for this developer from their real
-Claude Code transcripts. The pipeline has three parts:
+Claude Code transcripts. One run, three parts:
 
-1. **Measure (deterministic).** `insight.py` parses transcripts, de-contaminates
-   and scrubs them, and computes the numbers — rate-based, confidence-hedged, archive-backed
+1. **Measure (deterministic).** `insight.py` parses transcripts, de-contaminates and
+   scrubs them, and computes the numbers — rate-based, confidence-hedged, archive-backed
    so it sees **more than Claude Code's 30-day window**.
-2. **Explore (Sonnet 4.6).** Parallel explorers read the evidence, one per AI-fluency
-   competency.
-3. **Analyze (Opus 4.8).** A senior assessor writes the skill map, **grounded in the
-   bundled AI Fluency framework**, then verifies it is evidence-grounded.
+2. **Explore (Sonnet 4.6).** Parallel explorers read the evidence, one per AI-fluency competency.
+3. **Analyze (Opus 4.8).** A senior assessor writes the skill map, **grounded in the bundled
+   AI Fluency framework**, then verifies it is evidence-grounded.
 
-## Step 1 — Measure + emit evidence (one command)
+The skill is self-contained: the engine and the framework are bundled next to this file at
+`~/.claude/skills/ai-fluency/`, and all working files land in `~/.claude/insight/`.
 
-From the repo root (pure standard library — no install, no API key):
+## Step 1 — Measure + emit evidence
 
 ```bash
-python3 insight.py --evidence .insight/evidence.json --no-open -o ai_fluency_report.html $ARGUMENTS
+python3 ~/.claude/skills/ai-fluency/insight.py --evidence ~/.claude/insight/evidence.json --no-open -o ~/.claude/insight/ai_fluency_report.html $ARGUMENTS
 ```
 
-This writes a deterministic report and `.insight/evidence.json` (de-contaminated,
-local, git-ignored). If it reports no transcripts, tell the user to pass their
-transcript directory as `$ARGUMENTS` (default `~/.claude/projects`).
+This writes a deterministic report and the de-contaminated evidence bundle. If it reports
+no transcripts, tell the user to pass their transcript directory as `$ARGUMENTS` (default
+`~/.claude/projects`).
 
 ## Step 2 — Run the two-model analysis workflow
 
-Resolve absolute paths first, then invoke the bundled workflow:
+Print the absolute paths the workflow needs (it reads them with its own Read tool):
 
 ```bash
-python3 -c "import os;print(os.path.abspath('.insight/evidence.json'));print(os.path.abspath('reference/ai-fluency-framework.md'))"
+python3 -c "import os; print(os.path.expanduser('~/.claude/insight/evidence.json')); print(os.path.expanduser('~/.claude/skills/ai-fluency/reference/ai-fluency-framework.md'))"
 ```
 
 Then call the **Workflow** tool with:
 - `name`: `ai-fluency`
-- `args`: `{ "evidence": "<abs evidence path>", "framework": "<abs framework path>" }`
+- `args`: `{ "evidence": "<first line above>", "framework": "<second line above>" }`
 
-The workflow returns the analysis as a JSON object (overall_read, skill_map of the
-four competencies, top_growth, strengths). It uses **Sonnet 4.6** for exploration and
-**Opus 4.8** for analysis + verification — model selection is baked into the workflow.
+The workflow returns the analysis as a JSON object (overall_read, skill_map of the four
+competencies, top_growth, strengths). **Sonnet 4.6** explores, **Opus 4.8** analyzes +
+verifies — model selection is baked into the workflow.
 
 ## Step 3 — Render the final report
 
-Write the workflow's returned JSON to `.insight/analysis.json`, then merge it into
-the report:
+Write the workflow's returned JSON to `~/.claude/insight/analysis.json` (use the absolute
+path — that directory already exists from Step 1), then merge it into the report:
 
 ```bash
-python3 insight.py --analysis .insight/analysis.json --no-open -o ai_fluency_report.html $ARGUMENTS
+python3 ~/.claude/skills/ai-fluency/insight.py --analysis ~/.claude/insight/analysis.json -o ~/.claude/insight/ai_fluency_report.html $ARGUMENTS
 ```
 
-The report now carries the Opus-authored, framework-grounded skill map on top of the
-deterministic numbers. Point the user to `ai_fluency_report.html`.
+The report opens in the browser and now carries the Opus-authored, framework-grounded skill
+map on top of the deterministic numbers. Point the user to
+`~/.claude/insight/ai_fluency_report.html`.
 
 ## Step 4 — Narrate (don't re-derive)
 
-In chat, give a short, encouraging read: the **overall score + band + archetype** in
-one sentence, the **single highest-leverage growth move** grounded in one of their
-real prompts, and their **strongest competency** as the foundation. Keep it to a
-paragraph or two; the report has the depth.
+In chat, give a short, encouraging read: the **overall score + band + archetype** in one
+sentence, the **single highest-leverage growth move** grounded in one of their real prompts,
+and their **strongest competency** as the foundation. Keep it to a paragraph or two; the
+report has the depth.
 
 ## Fallbacks
 
-- **No Workflow capability available?** Steps 1 + a plain narration still work — the
+- **No Workflow capability available?** Step 1 + a plain narration still work — the
   deterministic report is complete on its own. Skip steps 2–3.
-- **Explicit path given?** Pass it as `$ARGUMENTS` in steps 1 and 3 (archiving is
-  skipped for explicit paths by design).
+- **Explicit path given?** Pass it as `$ARGUMENTS` in steps 1 and 3 (archiving is skipped
+  for explicit paths by design).
 
 ## Notes
 
 - Original transcripts are never modified. They're copied into an archive
   (`~/.claude/insight-archive`) so history outlives Claude Code's 30-day cleanup.
-- The report, `.insight/`, and the archive are git-ignored — only code + the
-  framework reference live in the repo.
-- Scores measure observable behavior, not intent; thin signals are flagged "low data"
-  and hedged — don't over-claim on those.
+- Scores measure observable behavior, not intent; thin signals are flagged "low data" and
+  hedged — don't over-claim on those.
