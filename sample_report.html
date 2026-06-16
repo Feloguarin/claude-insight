@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your AI Fluency Report</title>
+<style>
+:root{--bg:#0c0d18;--p:#15172a;--p2:#1d2040;--ink:#eef0ff;--mut:#a4a8cc;--line:#2a2d52;
+--ac:#7c5cff;--ac2:#3ad6c9;--good:#3ad68a;--warn:#ffb454;--bad:#ff6b8b;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:radial-gradient(1100px 640px at 72% -12%,#262a55 0%,var(--bg) 55%);color:var(--ink);
+font:16px/1.65 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;padding-bottom:80px}
+.wrap{max-width:880px;margin:0 auto;padding:0 22px}
+header{text-align:center;padding:60px 0 12px}
+.kick{letter-spacing:.22em;text-transform:uppercase;font-size:12px;color:var(--mut)}
+h1{font-size:34px;margin:10px 0 4px}
+.sub{color:var(--mut);max-width:620px;margin:6px auto 0;font-size:15px}
+.hero{margin:30px auto 0;display:flex;gap:22px;align-items:stretch;flex-wrap:wrap;justify-content:center}
+.score-card{background:linear-gradient(135deg,var(--p2),var(--p));border:1px solid var(--line);border-radius:22px;
+padding:26px 30px;text-align:center;flex:0 1 300px;min-width:240px;max-width:320px;box-shadow:0 18px 50px rgba(0,0,0,.4);
+display:flex;flex-direction:column;justify-content:center;align-items:center}
+.score-card .key{align-items:center}
+.ring{position:relative;width:170px;height:170px;margin:0 auto}
+.ring .n{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .n b{font-size:50px;line-height:1}
+.ring .n s{text-decoration:none;color:var(--mut);font-size:13px}
+.band{margin-top:12px;font-size:19px;font-weight:700;color:var(--ac2)}
+.rawnote{color:var(--mut);font-size:12px;margin-top:4px}
+.arch{flex:1;min-width:260px;background:var(--p);border:1px solid var(--line);border-radius:22px;padding:24px 26px;text-align:left;display:flex;flex-direction:column}
+.prov{background:rgba(255,180,84,.1);border:1px solid rgba(255,180,84,.35);color:#ffe6c2;border-radius:12px;padding:12px 16px;margin:22px 0 0;font-size:14px}
+section{margin:42px 0}
+h3{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:18px}
+.band-meaning{background:var(--p);border:1px solid var(--line);border-left:4px solid var(--ac);border-radius:12px;padding:16px 20px;color:#dfe2ff}
+.assess{background:var(--p);border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin-bottom:12px;font-size:15.5px;line-height:1.7;color:#e8eaff}
+.assess b{color:#fff}
+.ingest{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.ing{background:var(--p);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.ing .n{font-size:24px;font-weight:700;color:var(--ac2)}
+.ing .l{color:var(--mut);font-size:13px;margin-top:2px}
+.honesty{margin-top:16px;background:var(--p);border:1px solid var(--line);border-radius:14px;padding:16px 20px}
+.honesty b{color:var(--ink)}
+.honesty ul{list-style:none;display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:8px}
+.honesty li{color:var(--mut);font-size:14px}
+.dim{background:var(--p);border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin-bottom:12px}
+.dim .top{display:flex;justify-content:space-between;align-items:baseline}
+.dim .name{font-weight:700;font-size:17px}
+.dim .sval{font-size:22px;font-weight:800} .dim .hint{color:var(--mut);font-size:12px;font-weight:400}
+.dim-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:6px}
+.dim-h b{font-size:17px}
+.pill{font-size:12px;font-weight:700;color:var(--ink);background:var(--p2);border:1px solid var(--line);border-radius:99px;padding:3px 11px;white-space:nowrap}
+.ev{margin:8px 0 0 0;padding-left:18px} .ev li{color:var(--mut);font-size:14px;margin:3px 0}
+.next{margin-top:8px;font-size:14.5px} .next b{color:#fff}
+.bar{height:9px;background:#23264a;border-radius:99px;overflow:hidden;margin:11px 0 9px}
+.bar>i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--ac),var(--ac2))}
+.def{color:var(--ink);font-size:14.5px} .rate{color:var(--mut);font-size:13px;margin-top:3px} .wt{opacity:.7}
+.tag{font-size:10.5px;padding:2px 8px;border-radius:99px;font-weight:700;margin-left:6px;vertical-align:middle}
+.tag.s{background:rgba(58,214,138,.16);color:var(--good)} .tag.w{background:rgba(255,107,139,.16);color:var(--bad)}
+.tag.ld{background:rgba(164,168,204,.16);color:var(--mut)}
+.card{background:var(--p);border:1px solid var(--line);border-radius:16px;padding:18px 22px;margin-bottom:14px}
+.prio{border-left:4px solid var(--warn)} .keep{border-left:4px solid var(--good)}
+.ph{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--mut)}
+.pscore{float:right;color:var(--ac2);letter-spacing:0}
+.card h4{font-size:18px;margin:8px 0 12px}
+.wwh{margin:12px 0} .wwh .lab{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin-bottom:6px}
+ul.ev{list-style:none} ul.ev li{background:var(--p2);border-radius:9px;padding:9px 12px;margin-bottom:7px;font-size:14px}
+.loc{color:var(--mut);font-size:12.5px} .ev-none{color:var(--good);font-size:14px}
+.ev-agg{color:var(--mut);font-size:14px}
+.ba{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.why{color:var(--mut);font-size:14px;margin:2px 0 4px} .why b{color:var(--ink)}
+.how{font-size:14.5px;margin:0 0 4px}
+.sk-what{color:var(--ink);font-size:13.5px;margin-top:5px}
+.lvl{font-size:11px;color:var(--ac2);font-weight:600;margin-left:6px}
+.before,.after{border-radius:10px;padding:10px 13px;font-size:14px}
+.before{background:rgba(255,107,139,.08);color:#ffd0da} .after{background:rgba(58,214,138,.08);color:#cfeede}
+.before span,.after span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;opacity:.7;margin-bottom:3px}
+.tgt{margin-top:10px;color:var(--ac2);font-size:14px}
+.skill{background:var(--p);border:1px solid var(--line);border-radius:14px;padding:14px 18px;margin-bottom:10px}
+.sk-top{display:flex;justify-content:space-between;align-items:center} .sk-name{font-weight:700}
+.dot{display:inline-block;width:11px;height:11px;border-radius:50%;background:#2a2d52;margin-left:4px}
+.dot.on{background:linear-gradient(135deg,var(--ac),var(--ac2))}
+.sk-now{color:var(--mut);font-size:13.5px;margin-top:6px} .sk-next{font-size:13.5px;margin-top:3px}
+.facts{list-style:none} .facts li{background:var(--p);border:1px solid var(--line);border-radius:10px;padding:11px 15px;margin-bottom:8px;font-size:14.5px}
+.facts li::before{content:"›";color:var(--ac2);font-weight:800;margin-right:9px}
+details{background:var(--p);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-top:14px}
+summary{cursor:pointer;color:var(--mut);font-size:14px} details p,details li{color:var(--mut);font-size:13px;margin-top:8px}
+footer{text-align:center;color:var(--mut);font-size:13px;margin-top:46px}
+code{background:#23264a;padding:1px 6px;border-radius:5px;font-size:13px}
+/* hero — score-vs-style micro-keys */
+.key{display:flex;flex-direction:column;font-size:13.5px;color:#c4c9ec;text-align:left;margin-top:16px;line-height:1.5}
+.key>b{font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px;color:var(--mut);font-weight:700}
+.key span b{color:var(--ink);font-weight:700}
+.key-score{text-align:center} .key-score>b{color:var(--ac2)}
+.key-style{border-top:1px solid var(--line);padding-top:14px;margin-top:16px} .key-style>b{color:var(--ac2)}
+/* hero — driving-style spread + winner-relative affinity */
+.arch-eyebrow{display:flex;justify-content:space-between;align-items:baseline;gap:12px;text-transform:uppercase;letter-spacing:.16em;font-size:11px;color:var(--mut)}
+.arch-name{font-size:28px;font-weight:800;color:var(--ink);margin:6px 0 0}
+.arch-rule{height:2px;width:100%;border-radius:2px;margin:8px 0 12px;background:linear-gradient(90deg,var(--ac),var(--ac2))}
+.lede{color:var(--ink);font-size:16px;line-height:1.55}
+.match-dots{display:inline-flex;align-items:center;gap:5px}
+.match-dots .md{width:7px;height:7px;border-radius:50%;background:var(--line);display:inline-block}
+.match-dots .md.on{background:linear-gradient(135deg,var(--ac),var(--ac2))}
+.match-word{font-style:normal;letter-spacing:0;text-transform:none;color:var(--ink);font-size:12px;margin-left:6px}
+.affinity{margin:14px 0 4px}
+.aff-row{display:flex;align-items:center;gap:10px;margin:6px 0}
+.aff-emoji{width:20px;text-align:center;font-size:15px;opacity:.6}
+.aff-label{min-width:130px;font-size:13px;color:var(--mut)}
+.aff-track{flex:1;height:7px;background:#23264a;border-radius:99px;overflow:hidden}
+.aff-track>i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#6f63d8,#8f86e6);opacity:.85}
+.aff-num{min-width:30px;text-align:right;font-size:13px;color:var(--mut);font-variant-numeric:tabular-nums}
+.aff-row.win .aff-emoji{opacity:1}
+.aff-row.win .aff-label{color:var(--ink);font-size:16px;font-weight:700}
+.aff-row.win .aff-track>i{background:linear-gradient(90deg,var(--ac),var(--ac2));opacity:1}
+.aff-row.win .aff-num{color:var(--ink);font-weight:700}
+.aff-foot{color:var(--mut);font-size:12px;margin-top:8px}
+.verdict{font-size:13px;color:var(--mut);margin-top:6px} .verdict b{color:var(--ink)}
+/* hero — "if you change one thing" full-width band */
+.one-thing{flex-basis:100%;border-top:1px solid var(--line);padding-top:22px;margin-top:6px;text-align:left}
+.one-eyebrow{display:flex;justify-content:space-between;align-items:baseline;gap:12px;text-transform:uppercase;letter-spacing:.16em;font-size:11px;color:var(--mut);margin-bottom:12px}
+.one-move{font-size:22px;font-weight:700;color:var(--ink);line-height:1.3}
+.one-prac{color:var(--mut);font-size:15px;margin-top:4px}
+.one-ba{display:grid;gap:8px;margin:16px 0 4px}
+.ba-row{display:grid;grid-template-columns:46px 1fr;gap:12px;align-items:baseline;border-radius:10px;padding:10px 13px;font-size:14px}
+.ba-row>span{text-transform:uppercase;letter-spacing:.08em;font-size:11px;font-weight:700;opacity:.85}
+.ba-row.was{background:rgba(255,107,139,.08)} .ba-row.was>span{color:var(--bad)} .ba-row.was p{color:#ffd0da}
+.ba-row.now{background:rgba(58,214,138,.08)} .ba-row.now>span{color:var(--good)} .ba-row.now p{color:#cfeede}
+.one-more{font-size:13px;color:var(--mut);margin-top:10px}
+.one-more a{color:var(--ac2);text-decoration:none} .one-more a:hover{text-decoration:underline}
+@media(max-width:640px){.ba{grid-template-columns:1fr}.arch-name{font-size:24px}.arch-eyebrow{flex-wrap:wrap;gap:6px}.aff-label{min-width:96px}.one-move{font-size:20px}}
+</style></head><body><div class="wrap">
+
+<header>
+  <div class="kick">Claude Insight · AI Fluency Report</div>
+  <h1>How skillfully you build with AI</h1>
+  <p class="sub">A read of how you actually drive Claude Code — measured from your real prompts and Claude's real actions, analyzed entirely on your machine.</p>
+</header>
+
+
+
+<div class="hero">
+  <div class="score-card">
+    <div class="ring">
+      <svg width="170" height="170" style="transform:rotate(-90deg)">
+        <circle cx="85" cy="85" r="74" fill="none" stroke="#23264a" stroke-width="12"/>
+        <circle cx="85" cy="85" r="74" fill="none" stroke="url(#g)" stroke-width="12" stroke-linecap="round"
+          stroke-dasharray="409 999"/>
+        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#3ad6c9"/></linearGradient></defs>
+      </svg>
+      <div class="n"><b>88</b><s>/ 100</s></div>
+    </div>
+    <div class="band">Expert</div>
+    <div class="rawnote">raw 90 · confidence-adjusted 88</div>
+    <div class="key key-score"><b>What the 88 means</b><span>How well you and Claude work together — lifted by your <b>Verification</b>, held back by your <b>Briefing</b>.</span></div>
+  </div>
+  <div class="arch">
+    <div class="arch-eyebrow"><span>Your driving style</span>
+      <span class="match-dots"><span class="md on"></span><span class="md on"></span><span class="md on"></span><span class="md"></span><span class="md"></span><i class="match-word">clear match</i></span></div>
+    <h2 class="arch-name">🤖 Autonomous Agent</h2>
+    <div class="arch-rule"></div>
+    <p class="lede">You delegate whole, end-to-end jobs and trust the agent to run them — you set the outcome and let Claude pick the steps.</p>
+    <div class="affinity"><div class="aff-row win"><div class="aff-emoji">🤖</div><div class="aff-label">Autonomous Agent</div><div class="aff-track"><i style="width:68%"></i></div><div class="aff-num">68</div></div><div class="aff-row"><div class="aff-emoji">🏗️</div><div class="aff-label">Architect</div><div class="aff-track"><i style="width:52%"></i></div><div class="aff-num">52</div></div><div class="aff-row"><div class="aff-emoji">🐛</div><div class="aff-label">Debugger</div><div class="aff-track"><i style="width:40%"></i></div><div class="aff-num">40</div></div><div class="aff-row"><div class="aff-emoji">🤝</div><div class="aff-label">Collaborator</div><div class="aff-track"><i style="width:37%"></i></div><div class="aff-num">37</div></div><div class="aff-row"><div class="aff-emoji">⚡</div><div class="aff-label">Sprinter</div><div class="aff-track"><i style="width:5%"></i></div><div class="aff-num">5</div></div><p class="aff-foot">How much your style resembles each, on a 0–100 scale — yours is clearly out in front.</p></div>
+    <p class="verdict"><b>Clearly Autonomous Agent</b> — Architect is your nearest other style.</p>
+    <div class="key key-style"><b>What your style means</b><span>You run Claude like a teammate, not a tool — you hand off whole jobs and trust it to deliver. 13 of your turns set Claude loose on its own, far more than you debugged, paired, or sprinted alongside it.</span></div>
+  </div>
+  
+  <div class="one-thing">
+    <div class="one-eyebrow"><span>If you change one thing</span>
+      <span class="pill">Briefing · now 75/100</span></div>
+    <p class="one-move">Give every prompt one thing to aim at.</p>
+    <p class="one-prac">Before sending a prompt, add one anchor to your goal: a file path, a constraint, or a &#x27;done when…&#x27; line.</p>
+    <div class="one-ba">
+      <div class="ba-row was"><span>was</span><p>“fix the login bug”</p></div>
+      <div class="ba-row now"><span>now</span><p>“Users stay logged out after a correct password on Safari. The check lives in src/auth/session.ts. Fix it so a valid login sets the session cookie, and keep the current tests green.”</p></div>
+    </div>
+    <p class="one-more">This is your highest-leverage move. <a href="#priority-1">See the full plan ↓</a></p>
+  </div>
+</div>
+
+<section>
+  <h3>Professional assessment</h3>
+  <p class="assess">You drive Claude like <b>🤖 Autonomous Agent</b>. You delegate whole, end-to-end jobs and trust the agent to run them — you set the outcome and let Claude pick the steps. The clearest signal is your delegation rate — <b>100/100</b>, from 13 hand-offs to subagents, background jobs and planning — paired with fast, terse prompts (median 116 characters).</p><p class="assess">Your strongest <i>self-driven</i> habit is how much you hand off — you give Claude whole jobs and trust it to run them end-to-end. That, plus the disciplined read→edit→verify loop your sessions show, is why your overall score lands at <b>88/100 (Expert)</b>.</p><p class="assess">And the apparent tension, resolved: your lowest dimension is <b>Briefing</b> — but for an Autonomous Agent that isn't a contradiction, it's the <i>defining</i> growth edge. Autonomous Agents win on how sharply they frame the work they hand off — and right now yours are often one-liners like “clean it up”, so Claude fills gaps you could have decided. You already hand off whole jobs well — add one sharp sentence of intent per hand-off and far more will land right the first time, with less back-and-forth.</p>
+</section>
+
+<section>
+  <h3>What your score means</h3>
+  <div class="band-meaning"><b>Expert (88/100).</b> You treat the agent as a managed engineering system: consistently high-context prompts with explicit success criteria, disciplined read→edit→verify loops, deliberate delegation, and almost no wasted correction cycles.</div>
+</section>
+
+<section>
+  <h3>How much data this is based on</h3>
+  <div class="ingest">
+    <div class="ing"><div class="n">16</div><div class="l">sessions scanned</div></div>
+    <div class="ing"><div class="n">4</div><div class="l">projects</div></div>
+    <div class="ing"><div class="n">0.0 MB</div><div class="l">transcript data parsed</div></div>
+    <div class="ing"><div class="n">75 days</div><div class="l">span of activity</div></div>
+    <div class="ing"><div class="n">46</div><div class="l">real prompts you typed</div></div>
+    <div class="ing"><div class="n">6 h</div><div class="l">hands-on active time</div></div>
+    
+  </div>
+  
+  <div class="honesty">
+    <b>The honest part:</b> we found 46 “user” records but only <b>46</b> are prompts <b>you</b> typed. We filtered out 0 that the old tool wrongly counted:
+    <ul></ul>
+    <p style="color:var(--mut);font-size:13px;margin-top:10px">Your real prompts: median 116 chars · 15% under 80 chars · 6 h hands-on active time (idle gaps over 5 min are excluded — not raw wall-clock).</p>
+  </div>
+</section>
+
+
+
+<section>
+  <h3>The five dimensions</h3>
+  
+      <div class="dim">
+        <div class="top"><span class="name">Verification <span class="tag s">Strength</span></span><span class="sval">100<span class="hint">/100</span></span></div>
+        <div class="bar"><i style="width:100%"></i></div>
+        <p class="def">Whether changes get checked (tests / build / app) before moving on.</p>
+        <p class="rate">25 of 26 edit-bursts verified (96%)<span class="wt"> · weight 22%</span></p>
+      </div>
+      <div class="dim">
+        <div class="top"><span class="name">Context-setting </span><span class="sval">100<span class="hint">/100</span></span></div>
+        <div class="bar"><i style="width:100%"></i></div>
+        <p class="def">Reading a file before editing it — grounded, not blind, changes.</p>
+        <p class="rate">32 of 35 edits were grounded in a prior read (91%)<span class="wt"> · weight 22%</span></p>
+      </div>
+      <div class="dim">
+        <div class="top"><span class="name">Iteration </span><span class="sval">85<span class="hint">/100</span></span></div>
+        <div class="bar"><i style="width:85%"></i></div>
+        <p class="def">Correcting precisely instead of thrashing with vague rejections.</p>
+        <p class="rate">4 correction turns (9% of prompts); 100% were specific<span class="wt"> · weight 18%</span></p>
+      </div>
+      <div class="dim">
+        <div class="top"><span class="name">Briefing <span class="tag w">Top growth lever</span></span><span class="sval">75<span class="hint">/100</span></span></div>
+        <div class="bar"><i style="width:75%"></i></div>
+        <p class="def">How clearly you tell the agent what you want before it acts.</p>
+        <p class="rate">30% carry a constraint · 65% name a file/error · 24% state a why<span class="wt"> · weight 24%</span></p>
+      </div>
+      <div class="dim">
+        <div class="top"><span class="name">Toolcraft </span><span class="sval">75<span class="hint">/100</span></span></div>
+        <div class="bar"><i style="width:75%"></i></div>
+        <p class="def">Using a healthy range of tools — not forcing everything through one.</p>
+        <p class="rate">12 distinct tools, evenness 0.75, 13 delegations<span class="wt"> · weight 14%</span></p>
+      </div>
+</section>
+
+<section>
+  <h3>What to improve — and exactly how</h3>
+  
+      <div class="card prio" id="priority-1">
+        <div class="ph">Priority 1 · Briefing <span class="pscore">now 75/100</span></div>
+        <h4>Telling the agent what you want and giving it something to aim at: a goal plus a file, a constraint, or a way to know it worked.</h4>
+        <p class="why"><b>Why it matters.</b> When your goal and your limits are clear up front, the agent gets it right the first time instead of guessing and pulling you into rounds of fixes.</p>
+        <div class="wwh"><span class="lab">Where this shows up in your sessions</span><ul class='ev'><li>“fix the output” <span class="loc">— cli tools</span></li><li>“make it faster” <span class="loc">— cli tools</span></li><li>“Run the linter on cli/ and fix what it flags so CI passes.” <span class="loc">— cli tools</span></li></ul></div>
+        <div class="wwh"><span class="lab">How to grow it</span><p class="how">Before you hit enter, add one anchor to your goal: the file to touch, a rule it must not break, or a &#x27;done when…&#x27; line. One line is plenty.</p>
+          <div class="ba"><div class="before"><span>Instead of</span>“fix the login bug”</div><div class="after"><span>Stronger</span>“Users stay logged out after a correct password on Safari. The check lives in src/auth/session.ts. Fix it so a valid login sets the session cookie, and keep the current tests green.”</div></div><div class="ba"><div class="before"><span>Instead of</span>“add caching to the API”</div><div class="after"><span>Stronger</span>“Cache GET /products responses in api/products.py for 60s to ease DB load on repeat reads. Don&#x27;t cache authed requests, and add a test that a second call within 60s skips the DB.”</div></div>
+        </div>
+        <p class="tgt">🎯 Try this next session: Before sending a prompt, add one anchor to your goal: a file path, a constraint, or a &#x27;done when…&#x27; line.</p>
+      </div>
+      <div class="card prio">
+        <div class="ph">Priority 2 · Toolcraft <span class="pscore">now 75/100</span></div>
+        <h4>Letting the agent use the right tool for each step — searching the code, running commands, starting the app, working in the background — instead of forcing everything through chat.</h4>
+        <p class="why"><b>Why it matters.</b> The agent works faster and more reliably when it searches and runs things for real, rather than reasoning about the code from memory.</p>
+        <div class="wwh"><span class="lab">Where this shows up in your sessions</span><p class="ev-agg">No single moment to point at — it shows in the aggregate: 12 distinct tools, evenness 0.75, 13 delegations.</p></div>
+        <div class="wwh"><span class="lab">How to grow it</span><p class="how">Tell the agent which action to take first — search the codebase, run the suite, start the server — so it gathers facts and checks its work with the tool built for each step.</p>
+          <div class="ba"><div class="before"><span>Instead of</span>“How does login work in this app?”</div><div class="after"><span>Stronger</span>“Search the codebase for the login flow (grep for auth, session, login), read the files you find, then explain how a request goes from form submit to a logged-in session.”</div></div><div class="ba"><div class="before"><span>Instead of</span>“Add a retry to the API client, and make sure the tests still pass.”</div><div class="after"><span>Stronger</span>“Add retry-with-backoff to the API client. Then run the suite in the background; if anything fails, read the failure, fix it, and report back when it&#x27;s green.”</div></div>
+        </div>
+        <p class="tgt">🎯 Try this next session: Add one line to your next task telling the agent which action to take first: “search for…”, “run the tests”, or “start the server and check.”</p>
+      </div>
+  
+      <div class="card keep">
+        <div class="ph">Keep doing this · Verification <span class="pscore">100/100</span></div>
+        <p>Every change ends with proof — a passing test, a green build, a real response — pasted back to you, not just a claim. The evidence in your sessions: 25 of 26 edit-bursts verified (96%). This is your foundation — build on it.</p>
+      </div>
+</section>
+
+<section>
+  <h3>Your skill map</h3>
+  <div class="skill">
+          <div class="sk-top"><span class="sk-name">Briefing &amp; specificity <span class="lvl">Level 4/5</span></span><span class="sk-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot "></span></span></div>
+          <p class="sk-what">Telling the agent what you want and giving it something to aim at: a goal plus a file, a constraint, or a way to know it worked.</p>
+          <p class="sk-now"><b>You're here:</b> Goal + constraint + criterion are common.</p>
+          <p class="sk-next"><b>Next move:</b> name a goal + one anchor (path, constraint, or acceptance test) in most action prompts</p></div><div class="skill">
+          <div class="sk-top"><span class="sk-name">Verification discipline <span class="lvl">Level 5/5</span></span><span class="sk-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span></span></div>
+          <p class="sk-what">Having the agent prove its own work — run the tests, build, lint, or launch the app — before it tells you it&#x27;s done.</p>
+          <p class="sk-now"><b>You're here:</b> Verification is a reflex — stated up front and layered.</p>
+          <p class="sk-next"><b>Next move:</b> maintain this — it&#x27;s a real strength.</p></div><div class="skill">
+          <div class="sk-top"><span class="sk-name">Context grounding (read→edit) <span class="lvl">Level 5/5</span></span><span class="sk-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span></span></div>
+          <p class="sk-what">Pointing the agent at the real code — a file, a function, a line area — and having it read that before it changes anything.</p>
+          <p class="sk-now"><b>You're here:</b> Deliberate exploration before non-trivial changes.</p>
+          <p class="sk-next"><b>Next move:</b> maintain this — it&#x27;s a real strength.</p></div><div class="skill">
+          <div class="sk-top"><span class="sk-name">Iteration &amp; recovery <span class="lvl">Level 5/5</span></span><span class="sk-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span></span></div>
+          <p class="sk-what">When the agent goes the wrong way, steering it back with a precise correction — naming what broke and the rule to follow — instead of just “no” or “try again.”</p>
+          <p class="sk-now"><b>You're here:</b> Surgical feedback; turns misses into reusable rules.</p>
+          <p class="sk-next"><b>Next move:</b> maintain this — it&#x27;s a real strength.</p></div><div class="skill">
+          <div class="sk-top"><span class="sk-name">Toolcraft &amp; orchestration <span class="lvl">Level 4/5</span></span><span class="sk-dots"><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot "></span></span></div>
+          <p class="sk-what">Letting the agent use the right tool for each step — searching the code, running commands, starting the app, working in the background — instead of forcing everything through chat.</p>
+          <p class="sk-now"><b>You're here:</b> Comfortable with MCP + balanced spread.</p>
+          <p class="sk-next"><b>Next move:</b> reach past the shell — search, planning, delegation for the right jobs</p></div>
+</section>
+
+<section>
+  <h3>Honest numbers at a glance</h3>
+  <ul class="facts"><li>46 prompts you actually typed (out of 46 user records — the rest were tool output, subagent turns or system text)</li><li>median prompt is 116 characters (19 words); 15% are under 80 chars</li><li>6 hours of hands-on time (idle gaps over 5 min excluded)</li><li>12 distinct tools used; 98 tool calls in total</li><li>most-used tool: Bash</li><li>13 delegations (subagents / background jobs / planning)</li></ul>
+</section>
+
+<section>
+  <h3>Methodology &amp; honesty</h3>
+  <details><summary>How every number was computed (click to expand)</summary>
+    <p><b>Only real prompts are scored.</b> A “user” record counts as a prompt only if it is not a tool-result, not a subagent (sidechain) turn, not meta/injected, not a slash-command stub, and not a paste/system-prompt over 6,000 chars or opening with “You are …”. This removes the contamination that made the old tool report a 106-vs-real average.</p>
+    <p><b>Everything is a rate, then squashed.</b> Each dimension is a per-prompt or per-opportunity rate run through min(1, rate/target), so doing more work never raises the score — only doing it better does. Weights: Briefing 24%, Verification 22%, Context-setting 22%, Iteration 18%, Toolcraft 14%.</p>
+    <p><b>Thin signals are hedged, not faked.</b> Each dimension is pulled toward a neutral 50 in proportion to how many opportunities it had (e.g. Iteration had only 4 corrections, so it is flagged “low data”). Both raw and confidence-adjusted scores are shown.</p>
+    <p><b>Archetype</b> describes your <b>driving style</b>, not the collaboration's quality, so it is built on a separate <b>agency-weighted</b> vector: Briefing, Iteration, Toolcraft and Delegation (handoffs to subagents/background jobs/planning) count fully, while Verification and Context — habits Claude largely does on its own — are discounted (35% and 15% weight). It is the nearest prototype by cosine on z-scored values; if the top two are within 0.06 we show a blend. <b>Active time</b> caps idle gaps at 5 min. <b>Fixes vs v1:</b> prompt mis-count, length inflation, idle-time over-count, random archetype, uncapped tool-diversity, and keyword “error” false-positives.</p>
+    <p><b>Limits:</b> this measures observable behavior, not intent; detectors are heuristic and English-biased; it's a single snapshot, not a trend. Terse prompts that carry intent from the prior turn can under-score Direction.</p>
+  </details>
+</section>
+
+<footer>Generated locally by Claude Insight v2 · your transcripts never left this machine.</footer>
+</div></body></html>

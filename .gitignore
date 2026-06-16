@@ -17,6 +17,8 @@ report.html
 ai_fluency_report.html
 *_report.html
 *fluency*report*.html
+# ...except the fictional --demo sample, which contains NO real data and is shipped as a showcase.
+!sample_report.html
 
 # Local transcript archive (your private Claude Code history)
 insight-archive/

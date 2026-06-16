@@ -70,7 +70,19 @@ python3 insight.py /path/to/transcripts   # analyze a specific directory
 python3 insight.py --no-open              # don't auto-open the browser
 python3 insight.py --archive ~/Dropbox/claude-archive   # keep history in a synced folder
 python3 insight.py --no-archive          # analyze without copying anything new
+python3 insight.py --demo                 # render the report from a fictional dev (no real data) -> sample_report.html
 ```
+
+### See a sample
+
+Want to see the report before running it on your own history? Generate one from a
+fictional developer — same design, **zero real data**:
+
+```bash
+python3 insight.py --demo     # writes sample_report.html and opens it
+```
+
+A pre-generated [`sample_report.html`](sample_report.html) is checked in too.
 
 ## ⏳ Analyzing more than 30 days
 
