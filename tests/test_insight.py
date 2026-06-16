@@ -364,6 +364,32 @@ class TestDiscovery(unittest.TestCase):
         sub_f = write_session(sub, "agent-x.jsonl", [user_text("explicitly requested file")])
         self.assertEqual(insight.discover_files(sub_f), [sub_f])
 
+    def test_demo_data_can_never_enter_a_real_analysis(self):
+        # A --demo transcript copied (by hand, by a synced archive, anything) into a scanned
+        # dir must be refused by the real path so the fictional sample can never skew a user's
+        # own assessment. The guarantee lives in the consumer, not in the demo's good behavior.
+        proj = os.path.join(self.tmp, "proj")
+        os.makedirs(proj, exist_ok=True)
+        real_f = write_session(proj, "real.jsonl", [user_text("a genuine prompt about api.py")])
+        demo_f = write_session(proj, "demo.jsonl",
+                               [user_text("fictional Sam prompt", **{insight._DEMO_MARK: True})])
+        # Directory scan drops the demo file, keeps the real one.
+        found = insight.discover_files(self.tmp)
+        self.assertIn(real_f, found)
+        self.assertNotIn(demo_f, found)
+        # Even an explicitly-named demo file is refused on the real path.
+        self.assertEqual(insight.discover_files(demo_f), [])
+        # ...but render_demo's own opt-in still sees demo data.
+        self.assertIn(demo_f, insight.discover_files(self.tmp, allow_demo=True))
+
+    def test_demo_render_produces_a_real_report_and_no_flags(self):
+        # The --demo path must still render the full design from the fictional corpus.
+        out = os.path.join(self.tmp, "sample.html")
+        insight.render_demo(out, open_browser=False)
+        html = open(out, encoding="utf-8").read()
+        self.assertIn("<html", html.lower())
+        self.assertIn("Autonomous Agent", html)
+
 
 class TestPipelineModes(unittest.TestCase):
     """The --evidence (pipeline input) and --analysis (Opus output → report) hooks."""
