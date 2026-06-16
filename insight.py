@@ -30,6 +30,7 @@ pass --no-archive to skip that and read your transcripts without copying them.
 
 import argparse
 import glob
+import hashlib
 import html
 import json
 import math
@@ -51,7 +52,9 @@ DEFAULT_DIRS = ["~/.claude/projects", "~/.claude/sessions"]
 # Claude Code deletes transcripts older than its `cleanupPeriodDays` setting (default 30),
 # so by default only ~30 days of history is ever on disk. We mirror each run's transcripts
 # into this persistent archive so history accumulates indefinitely and survives the cleanup.
-# Point it at a synced folder (Dropbox/iCloud) to keep it across machines.
+# Keep this on a PRIVATE, per-person path. A single archive folder shared between different
+# people or computers (e.g. a synced team Dropbox) merges everyone's transcripts into one
+# analysis — so each person must point --archive at their own location, not a shared one.
 DEFAULT_ARCHIVE_DIR = "~/.claude/insight-archive"
 
 GAP_CAP_SECONDS = 300          # idle gaps longer than this are NOT counted as active time
@@ -543,6 +546,20 @@ def clamp(x, lo, hi):
     return max(lo, min(hi, x))
 
 
+def _run_fingerprint(corpus):
+    """A stable hash of THIS run's de-contaminated prompt set. It binds an AI analysis
+    (the Opus-stage skill map) to the exact data it was written from, so a stale or
+    foreign ``analysis.json`` — e.g. left over from a previous run or another person on a
+    machine that reuses the fixed ``~/.claude/insight/`` paths — carries a different
+    fingerprint and is refused at merge time. This is what stops one person's written
+    verdict from ever rendering inside someone else's report."""
+    h = hashlib.sha256()
+    for p in sorted(corpus.real_prompts, key=lambda r: (r["session"], r["idx"])):
+        h.update(f"{p['session']}\x1f{p['idx']}\x1f{p['text']}\x1e".encode("utf-8"))
+    h.update(f"|n={len(corpus.real_prompts)}".encode("utf-8"))
+    return h.hexdigest()[:16]
+
+
 def _is_action_prompt(text):
     return bool(ACTION_VERB.search(text))
 
@@ -835,7 +852,7 @@ def analyze(corpus):
     return {
         "raw": raw, "shrunk": shrunk, "conf": conf, "detail": detail, "evidence": evidence,
         "overall_raw": overall_raw, "overall": overall, "band": band, "band_meaning": band_meaning,
-        "archetype": archetype, "dist": dist,
+        "archetype": archetype, "dist": dist, "fingerprint": _run_fingerprint(corpus),
     }
 
 
@@ -918,6 +935,9 @@ def build_evidence(corpus, result, cards, archive_info=None):
             "active_hours": round(corpus.active_seconds / 3600, 1),
             "archive": archive_info,
             "prompt_distribution": result["dist"],
+            # Binds any analysis produced from this bundle back to this exact run; the
+            # analysis stage must echo it so a stale/foreign analysis can be refused.
+            "run_fingerprint": result.get("fingerprint"),
         },
         "scores": {
             "overall": result["overall"], "overall_raw": result["overall_raw"],
@@ -974,6 +994,41 @@ def _analysis_section_html(analysis):
                  'The numbers above are computed deterministically and independently.</p>')
     parts.append('</section>')
     return "".join(parts)
+
+
+def _growth_cards_html(analysis):
+    """The 'how to grow' cards, written FOR THIS PERSON by the Opus analysis stage:
+    each item names the habit, why it matters, how to grow it, and a before/after where
+    the 'before' is one of THEIR real prompts and the 'after' is Opus's tailored rewrite.
+    Returns '' when there is no analysis (the caller then falls back to the generic
+    teaching examples), so the report only ever shows canned examples when no AI ran."""
+    if not analysis or not isinstance(analysis, dict):
+        return ""
+    items = [g for g in (analysis.get("top_growth") or []) if isinstance(g, dict)]
+    if not items:
+        return ""
+    out = []
+    for i, g in enumerate(items[:3]):
+        title = _esc(g.get("title", "Your next growth move"))
+        why = _esc(g.get("why", ""))
+        how = _esc(g.get("how", ""))
+        before = g.get("example_before")
+        after = g.get("example_after")
+        ba = ""
+        if before and after:
+            ba = (f'<div class="ba"><div class="before"><span>A prompt you wrote</span>'
+                  f'“{_esc(str(before)[:400])}”</div>'
+                  f'<div class="after"><span>Tailored rewrite for you</span>'
+                  f'“{_esc(str(after)[:600])}”</div></div>')
+        out.append(
+            f'<div class="card prio"><div class="ph">Priority {i + 1} · written for you</div>'
+            f'<h4>{title}</h4>'
+            + (f'<p class="why"><b>Why it matters.</b> {why}</p>' if why else "")
+            + (f'<div class="wwh"><span class="lab">How to grow it</span>'
+               + (f'<p class="how">{how}</p>' if how else "") + f'{ba}</div>'
+               if (how or ba) else "")
+            + '</div>')
+    return "".join(out)
 
 
 # --------------------------------------------------------------------------- #
@@ -1065,9 +1120,13 @@ def build_assessment(corpus, result, cards):
           f"subagents, background jobs and planning — paired with fast, terse prompts (median "
           f"{median} characters).")
 
+    # Only credit the read→edit→verify loop when the data actually shows it; otherwise this
+    # clause was claiming a discipline some users' own report contradicts (0% verified / grounded).
+    loop_ok = result["shrunk"]["Context"] >= 55 and result["shrunk"]["Verification"] >= 55
+    p2_mid = ("That, plus the disciplined read→edit→verify loop your sessions show, is"
+              if loop_ok else "That is")
     p2 = (f"Your strongest <i>self-driven</i> habit is {_esc(_SIG_DESC.get(sig, sig.lower()))}. "
-          f"That, plus the disciplined read→edit→verify loop your sessions show, is why your overall "
-          f"score lands at <b>{result['overall']}/100 ({_esc(result['band'])})</b>.")
+          f"{p2_mid} why your overall score lands at <b>{result['overall']}/100 ({_esc(result['band'])})</b>.")
 
     gline = _GROWTH_LINE.get(growth, "").format(s=_esc(short), ex=_esc(example))
     p3 = (f"And the apparent tension, resolved: your lowest dimension is <b>{_esc(growth_disp)}</b> — but for "
@@ -1077,10 +1136,21 @@ def build_assessment(corpus, result, cards):
     return (f'<p class="assess">{p1}</p><p class="assess">{p2}</p><p class="assess">{p3}</p>')
 
 
-def build_html(corpus, result, cards, strength, archive_info=None, analysis=None):
+def build_html(corpus, result, cards, strength, archive_info=None, analysis=None, analysis_note=None):
     a = result["archetype"]
     d = result["dist"]
     analysis_section = _analysis_section_html(analysis)
+    # When an AI analysis was expected but couldn't be used (no-op'd, empty, or from a
+    # different run), say so plainly instead of letting the template-only report pass as
+    # the full thing. Silent on a plain deterministic run (no --analysis was attempted).
+    analysis_status_html = ""
+    if not analysis_section and analysis_note:
+        analysis_status_html = (
+            '<section><div class="prov">ℹ️ <b>Deterministic report only.</b> '
+            f'{_esc(analysis_note)} — the Sonnet&nbsp;+&nbsp;Opus skill map was not added on top. '
+            'The scores, archetype and dimensions below are still fully computed from your data; '
+            'to add the AI-written skill map, re-run <code>/ai-fluency</code> inside Claude Code.'
+            '</div></section>')
     days = (corpus.last_ts - corpus.first_ts).days if corpus.first_ts and corpus.last_ts else 0
     active_h = corpus.active_seconds / 3600
     filtered_total = sum(corpus.filtered.values())
@@ -1155,8 +1225,8 @@ def build_html(corpus, result, cards, strength, archive_info=None, analysis=None
         if archive_info and archive_info.get("enabled"):
             grew = (f' This run preserved <b>{archive_info["new"]:,}</b> new session(s) to your '
                     f'archive (<code>{arch_dir_disp}</code>), so from here your history keeps growing '
-                    f'past the 30-day wall — point <code>--archive</code> at a Dropbox/iCloud folder to '
-                    f'keep it across machines and reinstalls.')
+                    f'past the 30-day wall. Keep this archive private to you — sharing one folder '
+                    f'between people would mix everyone\'s transcripts into a single report.')
         retention_note = (
             '<div class="honesty" style="margin-top:14px">'
             f'<b>Why only ~{days} days?</b> Claude Code deletes transcripts older than your '
@@ -1193,6 +1263,10 @@ def build_html(corpus, result, cards, strength, archive_info=None, analysis=None
     for i, card in enumerate(cards[:2]):
         name = card["dim"]
         t = SKILL_TEACH[name]
+        # These before/after pairs are a fixed teaching library, identical for every user
+        # with this weak dimension — they are NOT drawn from this person's transcripts.
+        # Label them as such so they can never be mistaken for a personalized rewrite (the
+        # personalized signal is the "Where this shows up in your sessions" block above).
         ex_html = "".join(
             f'<div class="ba"><div class="before"><span>Instead of</span>“{_esc(e["before"])}”</div>'
             f'<div class="after"><span>Stronger</span>“{_esc(e["after"])}”</div></div>'
@@ -1205,17 +1279,30 @@ def build_html(corpus, result, cards, strength, archive_info=None, analysis=None
         <p class="why"><b>Why it matters.</b> {_esc(t['why_it_matters'])}</p>
         <div class="wwh"><span class="lab">Where this shows up in your sessions</span>{evidence_html(card)}</div>
         <div class="wwh"><span class="lab">How to grow it</span><p class="how">{_esc(t['how_to_improve'])}</p>
+          <p class="exgen">Generic illustrations of the habit — <b>not</b> from your sessions:</p>
           {ex_html}
         </div>
         <p class="tgt">🎯 Try this next session: {_esc(t['practice'])}</p>
       </div>"""
 
-    # strength callout — lead with the user's signature (self-driven) strength
+    # strength callout — lead with the user's signature (self-driven) strength.
+    # Floor the praise: if even the best dimension is weak, frame it as "relatively
+    # strongest" rather than asserting a mastered habit the rate-line would contradict.
     s_det = dim_rate_line(strength)
+    strong_score = round(result["shrunk"][strength])
+    if strong_score >= 55:
+        strength_head = "Keep doing this"
+        strength_body = (f"{_esc(SKILL_TEACH[strength]['good_looks_like'])} The evidence in your "
+                         f"sessions: {_esc(s_det)}. This is your foundation — build on it.")
+    else:
+        strength_head = "Your relatively strongest area"
+        strength_body = (f"Even your strongest dimension has room to grow ({strong_score}/100), but this "
+                         f"is the most natural place to build from. The evidence in your sessions: "
+                         f"{_esc(s_det)}.")
     strength_html = f"""
       <div class="card keep">
-        <div class="ph">Keep doing this · {_esc(disp(strength))} <span class="pscore">{round(result['shrunk'][strength])}/100</span></div>
-        <p>{_esc(SKILL_TEACH[strength]['good_looks_like'])} The evidence in your sessions: {_esc(s_det)}. This is your foundation — build on it.</p>
+        <div class="ph">{strength_head} · {_esc(disp(strength))} <span class="pscore">{strong_score}/100</span></div>
+        <p>{strength_body}</p>
       </div>"""
 
     # skill map (levels)
@@ -1235,6 +1322,12 @@ def build_html(corpus, result, cards, strength, archive_info=None, analysis=None
     if provisional:
         prov_banner = (f'<div class="prov">⚠️ Provisional: only {len(corpus.real_prompts)} real prompts found — '
                        f'treat the score as a rough range (±10). It sharpens as you use Claude Code more.</div>')
+    # On thin data the archetype is the least stable signal (a near-neutral vector lands on
+    # whichever prototype is closest by a hair), so hedge it explicitly rather than asserting it.
+    arch_hedge = ""
+    if provisional:
+        arch_hedge = ('<p style="margin-top:8px;font-size:12.5px;color:var(--warn)">Provisional — based on only '
+                      f'{len(corpus.real_prompts)} prompt(s); the archetype can shift as more history accumulates.</p>')
 
     # fun facts
     facts = [
@@ -1247,6 +1340,19 @@ def build_html(corpus, result, cards, strength, archive_info=None, analysis=None
     ]
     facts_html = "".join(f"<li>{_esc(f)}</li>" for f in facts)
     assessment_html = build_assessment(corpus, result, cards)
+
+    # "What to improve": prefer the Opus analysis's tailored growth cards (grounded in this
+    # person's real prompts). Only fall back to the generic teaching examples when no AI
+    # analysis ran — so a finished report is personalized, not a library of stock examples.
+    growth_cards = _growth_cards_html(analysis)
+    if growth_cards:
+        improve_cards = growth_cards
+        improve_intro = ('<p class="exgen" style="margin-bottom:14px">Written for you by Claude '
+                         'Opus&nbsp;4.8 from your real prompts — your highest-leverage moves, each '
+                         'with one of your prompts rewritten.</p>')
+    else:
+        improve_cards = cards_html
+        improve_intro = ""
 
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
@@ -1319,6 +1425,7 @@ ul.ev{{list-style:none}} ul.ev li{{background:var(--p2);border-radius:9px;paddin
 .ba{{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}}
 .why{{color:var(--mut);font-size:14px;margin:2px 0 4px}} .why b{{color:var(--ink)}}
 .how{{font-size:14.5px;margin:0 0 4px}}
+.exgen{{font-size:12px;color:var(--mut);margin:8px 0 2px;font-style:italic}}
 .sk-what{{color:var(--ink);font-size:13.5px;margin-top:5px}}
 .lvl{{font-size:11px;color:var(--ac2);font-weight:600;margin-left:6px}}
 .before,.after{{border-radius:10px;padding:10px 13px;font-size:14px}}
@@ -1367,6 +1474,7 @@ code{{background:#23264a;padding:1px 6px;border-radius:5px;font-size:13px}}
     <p>{_esc(a['blurb'])}</p>
     <p style="margin-top:10px;font-size:13px">Closest match {a['primary_sim']:+.2f}, next is {_esc(a['secondary'].replace('The ',''))} {a['secondary_sim']:+.2f}{' — close, so this is a blend' if a['blended'] else ''}. Built from how <b>you</b> drive — your briefs, corrections, tool choices and how much you hand off ({a['delegation_score']}/100 delegation) — and it deliberately discounts the read-before-edit and run-the-tests habits Claude does on its own, so it reflects you, not the agent.</p>
     <p style="margin-top:8px;font-size:12.5px;color:var(--mut)">Your <b>score</b> measures the quality of the collaboration (you + Claude); your <b>archetype</b> measures your driving style alone — so they can differ on purpose.</p>
+    {arch_hedge}
   </div>
 </div>
 
@@ -1400,6 +1508,7 @@ code{{background:#23264a;padding:1px 6px;border-radius:5px;font-size:13px}}
 </section>
 
 {analysis_section}
+{analysis_status_html}
 
 <section>
   <h3>The five dimensions</h3>
@@ -1408,7 +1517,8 @@ code{{background:#23264a;padding:1px 6px;border-radius:5px;font-size:13px}}
 
 <section>
   <h3>What to improve — and exactly how</h3>
-  {cards_html}
+  {improve_intro}
+  {improve_cards}
   {strength_html}
 </section>
 
@@ -1497,7 +1607,7 @@ def main(argv=None):
                     metavar="DIR",
                     help="persistent archive that preserves transcripts beyond Claude Code's "
                          "30-day cleanup so history accumulates (default ~/.claude/insight-archive; "
-                         "point at a Dropbox/iCloud folder to keep it across machines)")
+                         "keep it private to you — a folder shared between people mixes their data)")
     ap.add_argument("--no-archive", action="store_true",
                     help="don't copy this run's transcripts into the archive (still reads an existing one)")
     ap.add_argument("--evidence", metavar="PATH",
@@ -1505,6 +1615,12 @@ def main(argv=None):
                          "analysis pipeline to PATH ('-' for stdout), then continue")
     ap.add_argument("--analysis", metavar="PATH",
                     help="merge an AI analysis (JSON from the Opus stage) into the report's skill map")
+    ap.add_argument("--analysis-evidence", metavar="PATH", dest="analysis_evidence",
+                    help="the evidence bundle the --analysis was produced from; its run_fingerprint "
+                         "is checked against this run so a stale/foreign analysis can't be merged")
+    ap.add_argument("--quiet", action="store_true",
+                    help="suppress the terminal summary (the skill's internal measure pass uses this "
+                         "so the score isn't surfaced before the full AI report is ready)")
     args = ap.parse_args(argv)
 
     files = discover_files(args.path)
@@ -1525,6 +1641,14 @@ def main(argv=None):
             "merged_sessions": len(merged), "new": new, "updated": updated,
         }
         files = merged
+        # If most of what we're analyzing comes only from the archive (not this machine's
+        # live transcripts), a shared/synced archive could be feeding in someone else's data.
+        archive_only = archive_info["merged_sessions"] - archive_info["live_sessions"]
+        if archive_only > max(25, 2 * archive_info["live_sessions"]):
+            print(f"  Note: {archive_only} of {archive_info['merged_sessions']} analyzed sessions exist "
+                  f"only in the archive ({args.archive}), not in your live transcripts. If that archive "
+                  f"is shared or synced across people/machines, this report may mix in data that isn't "
+                  f"yours — point --archive at a private, per-person path.", file=sys.stderr)
 
     if not files:
         where = args.path or "~/.claude/projects"
@@ -1550,9 +1674,11 @@ def main(argv=None):
             os.makedirs(os.path.dirname(ep) or ".", exist_ok=True)
             with open(ep, "w", encoding="utf-8") as f:
                 f.write(text)
-            print(f"  Evidence: {ep}", file=sys.stderr)
+            if not args.quiet:
+                print(f"  Evidence: {ep}", file=sys.stderr)
 
     analysis = None
+    analysis_note = None
     if args.analysis:
         try:
             with open(os.path.expanduser(args.analysis), encoding="utf-8") as f:
@@ -1560,6 +1686,45 @@ def main(argv=None):
         except (OSError, json.JSONDecodeError) as e:
             print(f"Could not read --analysis {args.analysis}: {e}", file=sys.stderr)
             return 1
+        # Don't blindly trust the analysis file: it lives at a fixed, reused path, so it
+        # may be empty (the AI stage no-op'd) or left over from a different run/person.
+        # Validate shape + provenance; on any failure render the deterministic report
+        # only, and say so, rather than pasting someone else's verdict into this report.
+        current_fp = result.get("fingerprint")
+        if not isinstance(analysis, dict) or not analysis.get("skill_map"):
+            print("  Note: --analysis had no usable skill map (the AI stage may not have run); "
+                  "rendering the deterministic report only.", file=sys.stderr)
+            analysis_note = "the AI skill-map stage returned no usable output"
+            analysis = None
+        elif args.analysis_evidence:
+            # Deterministic provenance gate: the analysis is valid for this run only if the
+            # evidence it was built from fingerprints to THIS run's data. insight.py wrote
+            # that fingerprint, so this check never depends on the model copying anything.
+            evidence_fp = None
+            try:
+                with open(os.path.expanduser(args.analysis_evidence), encoding="utf-8") as f:
+                    evidence_fp = (json.load(f).get("meta") or {}).get("run_fingerprint")
+            except (OSError, json.JSONDecodeError):
+                evidence_fp = None
+            if evidence_fp != current_fp:
+                print(f"  Note: the --analysis does not match this run (its evidence fingerprint "
+                      f"{evidence_fp} != {current_fp}). Ignoring it so it can't leak into this "
+                      f"report; rendering the deterministic report only.", file=sys.stderr)
+                analysis_note = ("the saved AI analysis was produced from a different run / "
+                                 "dataset, so it was not used")
+                analysis = None
+        else:
+            # Manual --analysis with no evidence binding: if the file itself happens to carry a
+            # run_fingerprint, honor it; otherwise merge (back-compat with hand-written analyses).
+            supplied_fp = analysis.get("run_fingerprint")
+            if supplied_fp and current_fp and supplied_fp != current_fp:
+                print(f"  Note: the supplied --analysis was produced from a DIFFERENT run "
+                      f"(fingerprint {supplied_fp} != {current_fp}). Ignoring it so it can't "
+                      f"leak into this report; rendering the deterministic report only.",
+                      file=sys.stderr)
+                analysis_note = ("the saved AI analysis was produced from a different run / "
+                                 "dataset, so it was not used")
+                analysis = None
 
     if args.json:
         payload = {
@@ -1580,17 +1745,18 @@ def main(argv=None):
         return 0
 
     # Render fully before touching the file, so a render error can't leave a 0-byte report.
-    html_doc = build_html(corpus, result, cards, strength, archive_info, analysis)
+    html_doc = build_html(corpus, result, cards, strength, archive_info, analysis, analysis_note)
     out_path = os.path.abspath(args.out)
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(html_doc)
 
-    print(terminal_summary(corpus, result))
-    if archive_info and archive_info["enabled"]:
-        print(f"  Archive: {archive_info['merged_sessions']} sessions preserved at "
-              f"{archive_info['dir']} ({archive_info['new']} new, {archive_info['updated']} updated this run).")
-    print(f"  Report: {out_path}\n")
+    if not args.quiet:
+        print(terminal_summary(corpus, result))
+        if archive_info and archive_info["enabled"]:
+            print(f"  Archive: {archive_info['merged_sessions']} sessions preserved at "
+                  f"{archive_info['dir']} ({archive_info['new']} new, {archive_info['updated']} updated this run).")
+        print(f"  Report: {out_path}\n")
     if not args.no_open:
         try:
             webbrowser.open(f"file://{out_path}")

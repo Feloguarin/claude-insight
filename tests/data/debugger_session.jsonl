@@ -1,4 +1,0 @@
-{"role": "user", "content": "There is a bug in the logout logic. Why is the session not cleared?"}
-{"role": "assistant", "content": "Let me debug this.", "tool_calls": [{"function": {"name": "grep", "arguments": {"query": "clear_session"}}}]}
-{"role": "user", "content": "It's still broken after that fix. Trace the logs again."}
-{"role": "assistant", "content": "Checking logs..."}

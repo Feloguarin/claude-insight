@@ -104,9 +104,17 @@ const analystPrompt =
   `Reconcile them with the deterministic scores in the evidence bundle and the framework's level ` +
   `rubric and "what good looks like". Produce the final assessment per the framework's OUTPUT CONTRACT: ` +
   `an overall_read, a skill_map with EXACTLY the four competencies (Delegation, Description, Discernment, ` +
-  `Diligence) in that order, top_growth (1–3 items, each with a before/after drawn from THEIR real prompts), ` +
-  `and strengths. Respect agency (discount Claude-driven habits) and confidence (hedge thin signals). ` +
-  `Every claim must be grounded in the evidence.`
+  `Diligence) in that order, top_growth, and strengths. ` +
+  `\n\nThe top_growth section is the heart of the report — it is rendered as this person's "how to grow" ` +
+  `cards, so it MUST be fully custom, never generic advice. Produce 3 items (2 only if the data is thin). ` +
+  `For each: a sharp, specific title; a "why" that cites THIS person's own numbers/pattern (e.g. their ` +
+  `constraint rate, a habit you saw); a concrete "how"; and the before/after where example_before is a ` +
+  `REAL prompt they actually wrote (copy it VERBATIM from the evidence's sample_prompts or weak_examples — ` +
+  `do not invent or paraphrase it) and example_after is your tailored rewrite of THAT exact prompt, ready ` +
+  `to paste, fixing the specific gap. Pack it with signal: name their files, tools, projects, and phrasing. ` +
+  `If two growth items would share the same before/after, replace one so no example repeats. ` +
+  `Respect agency (discount Claude-driven habits) and confidence (hedge thin signals). ` +
+  `Every claim — and every example_before — must be grounded in the evidence.`
 let analysis = await agent(analystPrompt, { label: 'analyze', phase: 'Analyze', model: 'opus', schema: ANALYSIS })
 
 // ---- Verify: is the map actually grounded? repair once if not --------------

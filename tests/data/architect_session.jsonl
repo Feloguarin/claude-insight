@@ -1,4 +1,0 @@
-{"role": "user", "content": "Let's plan the architecture for the new authentication module. I want to see the existing structure first."}
-{"role": "assistant", "content": [{"type": "text", "text": "I will check the existing structure."}, {"type": "tool_use", "name": "ls", "input": {"path": "."}}]}
-{"role": "user", "content": "Before we write any code, let's compare the adapter pattern vs the factory pattern for this."}
-{"role": "assistant", "content": "Thinking about patterns...", "thinking": "The user wants to plan first. This indicates an Architect archetype."}

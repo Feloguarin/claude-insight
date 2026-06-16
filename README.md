@@ -43,7 +43,7 @@ Claude Insight parses your local Claude Code transcripts and generates:
 
 You get **one report**: your score and band, your builder archetype, the **Delegation · Description · Discernment · Diligence** skill map, and your highest-leverage moves — what to change, each with real evidence and a copy-paste prompt rewrite. The numbers are always computed deterministically; the models add judgement and direction on top, and never change the math. It runs on your existing Claude Code session — **no separate API key**; models are pinned per stage in [`.claude/workflows/ai-fluency.js`](.claude/workflows/ai-fluency.js).
 
-Not inside Claude Code? `python3 insight.py` (or the curl one-liner above) produces the same scores, archetype, skill levels and growth levers from the deterministic engine.
+Not inside Claude Code? `python3 insight.py` produces the complete deterministic report — the same scores, archetype, and skill levels — with generic (clearly-labeled) growth examples. The *personalized* growth rewrites come from the Opus stage, which runs via `/ai-fluency` inside Claude Code.
 
 ## 🧩 Use it as a Claude Code skill
 
@@ -54,21 +54,25 @@ Claude Code, just run:
 /ai-fluency
 ```
 
-The skill runs the three-stage pipeline (measure → Sonnet explore → Opus analyze),
-writes the full HTML report with the framework-grounded skill map, and then gives you
-a short plain-English read on top of it. It's also auto-discovered when you ask Claude
-Code to "analyze my AI fluency" or "profile how I use Claude Code". If the Workflow
-capability isn't available, it falls back to the deterministic report — still complete.
+The skill runs the three-stage pipeline as **one pass that ends in a single finished
+report** (it doesn't flash a score first and a report later). Opus writes your "how to
+grow" cards directly from *your own* prompts — tailored before/after rewrites, not stock
+examples — and the engine refuses to merge any analysis that doesn't fingerprint-match
+this exact run, so one person's verdict can never leak into another's report. It's also
+auto-discovered when you ask Claude Code to "analyze my AI fluency" or "profile how I use
+Claude Code". If the Workflow capability isn't available, it falls back to the
+deterministic report and says so plainly.
 
 ### Data export & flags
 
 ```bash
 python3 insight.py --json                 # metrics + data-ingested breakdown as JSON
-python3 insight.py --evidence ev.json     # write the de-contaminated evidence bundle (pipeline input)
-python3 insight.py --analysis an.json     # merge an Opus-stage analysis into the report's skill map
+python3 insight.py --evidence ev.json     # write the de-contaminated evidence bundle (carries a run_fingerprint)
+python3 insight.py --analysis an.json --analysis-evidence ev.json  # merge an Opus analysis, bound to this run
 python3 insight.py /path/to/transcripts   # analyze a specific directory
 python3 insight.py --no-open              # don't auto-open the browser
-python3 insight.py --archive ~/Dropbox/claude-archive   # keep history in a synced folder
+python3 insight.py --quiet               # suppress the terminal summary (used by the skill's measure step)
+python3 insight.py --archive ~/my-archive # keep history in a PRIVATE, per-person durable folder
 python3 insight.py --no-archive          # analyze without copying anything new
 ```
 
@@ -90,71 +94,28 @@ Two things make Claude Insight see more:
    *before* the cleanup can remove them, then analyzes **live + archive** deduped.
    So from your first run onward your history **accumulates indefinitely**, even
    past 30 days. It only ever grows files, copies atomically, and stays 100% on
-   your machine. Point it anywhere durable:
+   your machine. Point it at any durable path **that is private to you** — keep it
+   per-person, because a single archive folder shared between people (e.g. a synced
+   team Dropbox) would merge everyone's transcripts into one report:
    ```bash
-   python3 insight.py --archive ~/Dropbox/claude-archive   # survives reinstalls / new machines
+   python3 insight.py --archive ~/Dropbox/claude-archive   # survives reinstalls (your own, private folder)
    # or set CLAUDE_INSIGHT_ARCHIVE in your shell. Use --no-archive to skip a run.
    ```
 
-## 📦 Installation (legacy package — optional)
+## 📦 Run from source (no install)
 
-> You don't need this for the recommended path. `python3 insight.py` runs
-> standalone with zero install. The steps below install the older
-> `claude-insight` package/CLI (which also offers an offline local-Ollama mode).
-> The v2 single-file engine is the most accurate entry point.
+`insight.py` is a single pure-standard-library file — clone and run it, nothing to
+`pip install`:
 
-### One-liner
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Feloguarin/claude-insight/main/install.sh | bash
-```
-
-### Manual
-```bash
-# Clone the repository
 git clone https://github.com/Feloguarin/claude-insight.git
 cd claude-insight
-
-# Install the package (pure standard library — no dependencies)
-pip install -e .
-
-# Run analysis on your default Claude Code transcripts
-python -m claude_insight
+python3 insight.py                 # analyze ~/.claude/projects, write + open the report
 ```
 
-> Requires Python 3.9+.
-
-## 🎯 Usage
-
-Once installed, run via the `claude-insight` console script or `python -m claude_insight`.
-
-### Analyze All Sessions (default paths)
-Scans `~/.claude/projects` and `~/.claude/sessions`:
-```bash
-claude-insight
-```
-
-### Analyze a Specific Directory or Session File
-```bash
-claude-insight --dir ~/.claude/projects/
-claude-insight --dir ~/.claude/projects/session_abc123.jsonl
-```
-
-### Generate an HTML Report
-```bash
-claude-insight --dir ~/.claude/projects/ --report report.html
-```
-
-### Try It Without Real Data
-Generate and analyze mock sessions:
-```bash
-claude-insight --mock
-```
-
-### Choose a Model / Skip the AI
-```bash
-claude-insight --model llama3.2:3b   # use a different local Ollama model
-claude-insight --no-ai               # heuristic analysis only (no model needed)
-```
+> Requires Python 3.8+. The full AI-personalized report (Sonnet explore → Opus analyze)
+> comes from running `/ai-fluency` inside Claude Code; `python3 insight.py` on its own
+> produces the complete deterministic report (scores, archetype, dimensions, growth levers).
 
 ## 📊 Example Output
 
@@ -180,9 +141,8 @@ reference/
 .claude/
 ├── skills/ai-fluency/SKILL.md   # /ai-fluency — orchestrates the one-command pipeline
 └── workflows/ai-fluency.js      # Sonnet 4.6 explore → Opus 4.8 analyze → verify
-tests/                           # stdlib unittest (de-contamination, scoring, archive, …)
-
-claude_insight/                  # legacy package (optional; older Ollama-based CLI)
+tests/                           # stdlib unittest (de-contamination, scoring, archive,
+                                 #   analysis-provenance, personalized growth)
 ```
 
 ## 📈 Metrics Computed

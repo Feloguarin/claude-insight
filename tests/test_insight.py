@@ -5,7 +5,9 @@ Focus: the accuracy guarantees that v1 violated — prompt de-contamination,
 rate-based scoring that can't be inflated by volume, gap-capped active time,
 and confidence shrinkage of thin signals. Pure stdlib unittest.
 """
+import contextlib
 import glob
+import io
 import json
 import os
 import sys
@@ -429,6 +431,206 @@ class TestPipelineModes(unittest.TestCase):
         with open(out, encoding="utf-8") as fh:
             html = fh.read()
         self.assertNotIn("analyzed against the AI Fluency framework", html)
+        # A plain deterministic run must NOT show the "AI stage didn't run" banner — that
+        # banner is only for a run where an analysis was supplied but couldn't be used.
+        self.assertNotIn("Deterministic report only", html)
+
+
+class TestAnalysisProvenance(unittest.TestCase):
+    """Regression guard for the leakage bug: a stale/foreign/empty analysis must never
+    render in this run's report. An analysis is bound to a run by a fingerprint."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        write_session(self.tmp, "s.jsonl", [
+            user_text("add a /health endpoint to server.py, only that file, so the LB can probe it"),
+            assistant_tool("Read", file_path="/x/server.py"),
+            assistant_tool("Edit", file_path="/x/server.py"),
+            assistant_tool("Bash", command="python -m pytest -q"),
+            user_text("run it and tell me if it passes"),
+        ])
+        self.fp = insight.analyze(insight.parse(insight.discover_files(self.tmp)))["fingerprint"]
+
+    def _analysis(self, **over):
+        a = {
+            "overall_read": "UNIQUE-VERDICT-TOKEN: hands off whole jobs well.",
+            "skill_map": [{"competency": "Delegation", "level": 4, "level_label": "Advanced",
+                           "summary": "Hands off end to end.", "evidence": ["one scoped hand-off"],
+                           "next_move": "add one sentence of intent per hand-off"}],
+            "top_growth": [], "strengths": ["clear delegation"],
+        }
+        a.update(over)
+        return a
+
+    def _write(self, obj):
+        p = os.path.join(self.tmp, "an.json")
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump(obj, fh)
+        return p
+
+    def _run(self, ap, evidence=None):
+        out = os.path.join(self.tmp, "r.html")
+        argv = [self.tmp, "--analysis", ap, "--no-open", "-o", out]
+        if evidence:
+            argv += ["--analysis-evidence", evidence]
+        rc = insight.main(argv)
+        self.assertEqual(rc, 0)
+        with open(out, encoding="utf-8") as fh:
+            return fh.read()
+
+    def _evidence_for(self, src_dir):
+        """Write a real evidence bundle (with its run_fingerprint) for a transcript dir."""
+        evp = os.path.join(tempfile.mkdtemp(), "ev.json")
+        rc = insight.main([src_dir, "--evidence", evp, "--no-open", "--no-archive",
+                           "-o", os.path.join(self.tmp, "det.html")])
+        self.assertEqual(rc, 0)
+        return evp
+
+    def test_matching_fingerprint_merges(self):
+        html = self._run(self._write(self._analysis(run_fingerprint=self.fp)))
+        self.assertIn("analyzed against the AI Fluency framework", html)
+        self.assertIn("UNIQUE-VERDICT-TOKEN", html)
+
+    def test_mismatched_fingerprint_is_rejected_and_does_not_leak(self):
+        # The exact reported bug: an analysis from a DIFFERENT run/person must not render.
+        html = self._run(self._write(self._analysis(run_fingerprint="deadbeefdeadbeef")))
+        self.assertNotIn("UNIQUE-VERDICT-TOKEN", html)              # no foreign verdict leaked
+        self.assertNotIn("analyzed against the AI Fluency framework", html)
+        self.assertIn("Deterministic report only", html)           # and we say so honestly
+
+    def test_empty_analysis_is_dropped_with_notice(self):
+        html = self._run(self._write({}))
+        self.assertNotIn("analyzed against the AI Fluency framework", html)
+        self.assertIn("Deterministic report only", html)
+
+    def test_fingerprintless_analysis_still_merges_for_backcompat(self):
+        # No run_fingerprint (older analyses / manual use) is allowed through unchanged.
+        html = self._run(self._write(self._analysis()))
+        self.assertIn("analyzed against the AI Fluency framework", html)
+
+    def test_fingerprint_changes_with_the_data(self):
+        other = tempfile.mkdtemp()
+        write_session(other, "s.jsonl", [user_text("totally different prompt here")])
+        fp2 = insight.analyze(insight.parse(insight.discover_files(other)))["fingerprint"]
+        self.assertNotEqual(self.fp, fp2)
+
+    def test_evidence_binding_matching_merges(self):
+        # The real-pipeline path: --analysis-evidence is the bundle this run produced, so its
+        # fingerprint matches and the (fingerprint-less) analysis merges — no LLM copy needed.
+        ev = self._evidence_for(self.tmp)
+        html = self._run(self._write(self._analysis()), evidence=ev)
+        self.assertIn("analyzed against the AI Fluency framework", html)
+        self.assertIn("UNIQUE-VERDICT-TOKEN", html)
+
+    def test_evidence_binding_mismatch_rejects_and_does_not_leak(self):
+        # Evidence built from DIFFERENT data: the fingerprint won't match this run, so even a
+        # well-formed analysis is refused — this is what stops one person's verdict leaking.
+        other = tempfile.mkdtemp()
+        write_session(other, "s.jsonl", [user_text("an entirely different person's session"),
+                                         user_text("with different prompts entirely")])
+        foreign_ev = self._evidence_for(other)
+        html = self._run(self._write(self._analysis()), evidence=foreign_ev)
+        self.assertNotIn("UNIQUE-VERDICT-TOKEN", html)
+        self.assertNotIn("analyzed against the AI Fluency framework", html)
+        self.assertIn("Deterministic report only", html)
+
+
+class TestNoTemplateMisframing(unittest.TestCase):
+    """The deterministic report's generic teaching examples must be labeled as generic,
+    and each user's report must carry that user's own evidence, not a shared template."""
+
+    def _report_for(self, prompts):
+        d = tempfile.mkdtemp()
+        write_session(d, "s.jsonl", [user_text(p) for p in prompts])
+        out = os.path.join(d, "r.html")
+        rc = insight.main([d, "--no-open", "-o", out])
+        self.assertEqual(rc, 0)
+        with open(out, encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_generic_examples_are_labeled_not_personalized(self):
+        html = self._report_for(["fix it", "do the thing", "make it work", "change that"])
+        # the canned before/after pairs must be explicitly flagged as not-from-your-sessions
+        self.assertIn("not</b> from your sessions", html)
+
+    def test_two_different_users_get_their_own_evidence(self):
+        a = self._report_for(["fix the frobnicator", "fix the frobnicator now",
+                              "update the frobnicator", "redo the frobnicator"])
+        b = self._report_for(["build the gizmotron", "build the gizmotron now",
+                              "update the gizmotron", "redo the gizmotron"])
+        # each report surfaces its OWN distinctive prompts and not the other user's
+        self.assertIn("frobnicator", a)
+        self.assertNotIn("gizmotron", a)
+        self.assertIn("gizmotron", b)
+        self.assertNotIn("frobnicator", b)
+
+
+class TestPersonalizedGrowthAndQuiet(unittest.TestCase):
+    """The finished report must show Opus's TAILORED growth moves (not the generic teaching
+    examples), and the measure pass must be silent so the score isn't surfaced early."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        write_session(self.tmp, "s.jsonl", [
+            user_text("add a /health endpoint to server.py, only that file, so the LB can probe it"),
+            assistant_tool("Read", file_path="/x/server.py"),
+            assistant_tool("Edit", file_path="/x/server.py"),
+            user_text("run it"),
+        ])
+
+    def test_quiet_suppresses_the_score_summary(self):
+        out = os.path.join(self.tmp, "r.html")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = insight.main([self.tmp, "--no-open", "--quiet", "-o", out])
+        self.assertEqual(rc, 0)
+        self.assertNotIn("AI Fluency Score", buf.getvalue())   # nothing surfaced to the user
+        self.assertTrue(os.path.exists(out))                   # but the report was still written
+
+    def test_opus_top_growth_replaces_generic_examples(self):
+        analysis = {
+            "overall_read": "Strong delegator; sharpen your briefs.",
+            "skill_map": [
+                {"competency": "Delegation", "level": 4, "level_label": "Advanced",
+                 "summary": "Hands off whole jobs.", "evidence": ["scoped hand-off"], "next_move": "name intent"},
+                {"competency": "Description", "level": 2, "level_label": "Developing",
+                 "summary": "Terse.", "evidence": ["'run it'"], "next_move": "name a file + a constraint"},
+                {"competency": "Discernment", "level": 3, "level_label": "Proficient",
+                 "summary": "Reads first.", "evidence": ["read before edit"], "next_move": "verify after edits"},
+                {"competency": "Diligence", "level": 3, "level_label": "Proficient",
+                 "summary": "Owns sequencing.", "evidence": ["phase gate"], "next_move": "tear down"},
+            ],
+            "top_growth": [
+                {"title": "Put a finish line on every hand-off", "why": "Your intent rate is low",
+                 "how": "name what 'done' looks like",
+                 "example_before": "run it",
+                 "example_after": "TAILORED-REWRITE-TOKEN: run the server.py tests and paste the output"},
+            ],
+            "strengths": ["clear delegation"],
+        }
+        ap = os.path.join(self.tmp, "an.json")
+        with open(ap, "w", encoding="utf-8") as fh:
+            json.dump(analysis, fh)
+        out = os.path.join(self.tmp, "r.html")
+        rc = insight.main([self.tmp, "--analysis", ap, "--no-open", "-o", out])
+        self.assertEqual(rc, 0)
+        with open(out, encoding="utf-8") as fh:
+            html = fh.read()
+        # the personalized growth card is rendered, with Opus's tailored rewrite of a real prompt
+        self.assertIn("TAILORED-REWRITE-TOKEN", html)
+        self.assertIn("written for you", html)
+        self.assertIn("Tailored rewrite for you", html)
+        # and the generic stock example is NOT in the improve section anymore
+        self.assertNotIn("session cookie", html)
+
+    def test_without_analysis_generic_examples_are_present_but_labeled(self):
+        out = os.path.join(self.tmp, "r.html")
+        rc = insight.main([self.tmp, "--no-open", "-o", out])
+        self.assertEqual(rc, 0)
+        with open(out, encoding="utf-8") as fh:
+            html = fh.read()
+        # no AI ran -> the generic teaching examples appear, explicitly flagged as generic
+        self.assertIn("not</b> from your sessions", html)
 
 
 if __name__ == "__main__":
