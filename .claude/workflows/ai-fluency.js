@@ -9,9 +9,13 @@ export const meta = {
   ],
 }
 
-// Resolve inputs (the /ai-fluency skill passes absolute paths via args).
-const EV = (args && args.evidence) || '.insight/evidence.json'
-const FW = (args && args.framework) || 'reference/ai-fluency-framework.md'
+// Resolve inputs. The /ai-fluency skill passes absolute paths via args, but if they don't
+// arrive the defaults MUST still point at the exact files the skill writes — never a bare
+// relative path like '.insight/evidence.json', which an agent will "helpfully" resolve to a
+// stale copy elsewhere on disk (e.g. an old ~/Dropbox/.../.insight/evidence.json), silently
+// analyzing the wrong dataset.
+const EV = (args && args.evidence) || '~/.claude/insight/evidence.json'
+const FW = (args && args.framework) || '~/.claude/skills/ai-fluency/reference/ai-fluency-framework.md'
 
 const COMPETENCIES = [
   { key: 'Delegation',  focus: 'What they hand to the agent vs keep, and how they split work: end-to-end hand-offs vs micro-stepping, sub-agents / background jobs / planning, tool breadth (platform & path awareness). Signals: delegation_events, tool_usage, scope of prompts.' },
@@ -78,8 +82,13 @@ const VERDICT = {
   },
 }
 
-const READ = `Read the framework at ${FW} and the evidence bundle (JSON) at ${EV} using your Read tool. ` +
-  `The evidence is de-contaminated, real, and local. Ground everything in it — quote real prompts; never invent.`
+const READ = `Using your Read tool, read EXACTLY these two files and use ONLY them — the framework at ` +
+  `${FW} and the de-contaminated evidence bundle (JSON) at ${EV}. ` +
+  `Do NOT search for, guess at, or substitute any other path: there may be stale evidence.json ` +
+  `copies elsewhere on disk (old archives, Dropbox/iCloud folders) — ignore them entirely. If either ` +
+  `file is missing, STOP and report that rather than reading a different one. (A leading ~ means your ` +
+  `home directory — expand it to $HOME before reading.) The evidence is real and ` +
+  `local; ground everything in it — quote real prompts; never invent.`
 
 // ---- Explore: Sonnet 4.6, one thorough explorer per competency -------------
 phase('Explore')
