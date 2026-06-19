@@ -633,5 +633,73 @@ class TestPersonalizedGrowthAndQuiet(unittest.TestCase):
         self.assertIn("not</b> from your sessions", html)
 
 
+class TestCoworkSupport(unittest.TestCase):
+    """Cowork (local agent mode) sessions are audit.jsonl files that differ from Claude Code
+    transcripts in three ways the parser must absorb: `_audit_timestamp` instead of
+    `timestamp`, string (not list) user content, and inline subagent turns marked by
+    parent_tool_use_id. And because every file is literally named audit.jsonl, sessions must
+    be identified by their `local_<uuid>` folder or they all collapse into one."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+
+    def _cowork_session(self, uuid, records):
+        d = os.path.join(self.tmp, "local-agent-mode-sessions", "acct", "ws", "local_" + uuid)
+        os.makedirs(d, exist_ok=True)
+        return write_session(d, "audit.jsonl", records)
+
+    @staticmethod
+    def _cw_user(text, ts, parent=None):
+        return _rec(type="user", _audit_timestamp=ts, parent_tool_use_id=parent,
+                    session_id="sid", message={"role": "user", "content": text})
+
+    @staticmethod
+    def _cw_tool(name, ts, parent=None, **inp):
+        return _rec(type="assistant", _audit_timestamp=ts, parent_tool_use_id=parent,
+                    message={"role": "assistant",
+                             "content": [{"type": "tool_use", "name": name, "input": inp}]})
+
+    def test_two_sessions_stay_distinct_despite_identical_filename(self):
+        # Both files are named audit.jsonl; keying on the filename stem would collapse them.
+        self._cowork_session("aaaaaaaa", [self._cw_user("summarize the slack threads", "2026-02-01T00:00:00Z")])
+        self._cowork_session("bbbbbbbb", [self._cw_user("research the edtech market", "2026-02-02T00:00:00Z")])
+        files = insight.discover_files(self.tmp)
+        deduped = insight._dedupe_sessions(files)
+        self.assertEqual(len(deduped), 2)  # NOT collapsed to 1
+        corpus = insight.parse(deduped)
+        self.assertEqual(len(corpus.sessions), 2)
+        texts = sorted(p["text"] for p in corpus.real_prompts)
+        self.assertEqual(texts, ["research the edtech market", "summarize the slack threads"])
+        # labeled as a cowork session, not the raw local_<uuid> folder
+        self.assertEqual(corpus.projects, {"cowork"})
+
+    def test_audit_timestamp_parsed_into_active_time(self):
+        self._cowork_session("cccccccc", [
+            self._cw_user("do the thing", "2026-02-01T00:00:00Z"),
+            self._cw_tool("Read", "2026-02-01T00:00:30Z"),  # 30s later -> 30s active
+        ])
+        corpus = insight.parse(insight.discover_files(self.tmp))
+        self.assertGreater(corpus.active_seconds, 0)
+        self.assertIsNotNone(corpus.first_ts)
+
+    def test_nested_subagent_turns_excluded(self):
+        self._cowork_session("dddddddd", [
+            self._cw_user("kick off the research", "2026-02-01T00:00:00Z"),          # real prompt
+            self._cw_user("internal subagent prompt", "2026-02-01T00:00:05Z",
+                          parent="toolu_nested"),                                     # nested -> drop
+            self._cw_tool("mcp__workspace__bash", "2026-02-01T00:00:06Z", parent="toolu_nested",
+                          command="ls"),                                             # nested tool -> don't count
+            self._cw_tool("mcp__workspace__read", "2026-02-01T00:00:10Z"),            # top-level tool -> count
+        ])
+        corpus = insight.parse(insight.discover_files(self.tmp))
+        texts = [p["text"] for p in corpus.real_prompts]
+        self.assertEqual(texts, ["kick off the research"])
+        self.assertGreaterEqual(corpus.filtered["nested agent turns"], 1)
+        # cowork tools arrive namespaced (mcp__workspace__*) and are de-namespaced to bare names.
+        # the nested bash must not inflate tool usage; the top-level read must be counted.
+        self.assertEqual(corpus.tool_usage.get("bash", 0), 0)
+        self.assertEqual(corpus.tool_usage.get("read", 0), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

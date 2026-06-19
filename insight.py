@@ -47,7 +47,13 @@ from datetime import datetime
 # Constants & tunables (documented; shown in the report's methodology appendix)
 # --------------------------------------------------------------------------- #
 
-DEFAULT_DIRS = ["~/.claude/projects", "~/.claude/sessions"]
+DEFAULT_DIRS = [
+    "~/.claude/projects",
+    "~/.claude/sessions",
+    # Cowork / local agent mode (Claude desktop app). Sessions are stored as audit.jsonl,
+    # one per "local_<uuid>" folder, in a near-identical shape to Claude Code transcripts.
+    "~/Library/Application Support/Claude/local-agent-mode-sessions",
+]
 
 # Claude Code deletes transcripts older than its `cleanupPeriodDays` setting (default 30),
 # so by default only ~30 days of history is ever on disk. We mirror each run's transcripts
@@ -349,6 +355,27 @@ def _filter_transcripts(paths):
     return [p for p in paths if not _SUBAGENT_RE.search(p)]
 
 
+def _is_cowork(path):
+    """Cowork (local agent mode) sessions are always named audit.jsonl, while Claude Code
+    sessions are named <session-uuid>.jsonl. The basename alone discriminates them, and it
+    keeps working after a file is mirrored into the persistent archive (where the cowork
+    folder name is gone but the audit.jsonl name survives)."""
+    return os.path.basename(path) == "audit.jsonl"
+
+
+def _session_key(path):
+    """A stable, per-session identity used both to de-duplicate and to label a session.
+
+    Claude Code filenames ARE globally-unique session UUIDs, so the stem is the key.
+    Cowork files are ALL named audit.jsonl, so the stem would collapse every cowork session
+    into one — the unique id is the enclosing 'local_<uuid>' folder instead (preserved by the
+    archive, which mirrors each file under that same folder name)."""
+    if _is_cowork(path):
+        parent = os.path.basename(os.path.dirname(path))  # e.g. local_<uuid>
+        return parent[len("local_"):] if parent.startswith("local_") else (parent or "cowork")
+    return os.path.splitext(os.path.basename(path))[0]
+
+
 def discover_files(explicit):
     if explicit:
         p = os.path.expanduser(explicit)
@@ -373,10 +400,12 @@ def _dedupe_sessions(files):
     path, or a synced copy from another machine), keep a single copy of it: the largest one,
     since transcripts only ever grow, so the biggest file is the most complete. Claude Code
     session filenames are globally-unique IDs, so the filename alone identifies the session —
-    keying on it (not the parent folder) is what makes the dedupe robust to all of the above."""
+    keying on it (not the parent folder) is what makes the dedupe robust to all of the above.
+    Cowork sessions are all named audit.jsonl, so for those _session_key falls back to the
+    unique 'local_<uuid>' folder; otherwise they would all collapse into a single session."""
     best = {}
     for path in files:
-        key = os.path.basename(path)
+        key = _session_key(path)
         try:
             size = os.path.getsize(path)
         except OSError:
@@ -442,13 +471,14 @@ def parse(files):
     c = Corpus()
     c.files = len(files)
     for path in files:
-        project = os.path.basename(os.path.dirname(path)) or "default"
+        cowork = _is_cowork(path)
+        project = "cowork" if cowork else (os.path.basename(os.path.dirname(path)) or "default")
         c.projects.add(project)
         try:
             c.total_bytes += os.path.getsize(path)
         except OSError:
             pass
-        session_id = os.path.splitext(os.path.basename(path))[0]
+        session_id = _session_key(path)
         timeline = []
         ts_in_file = []
         prompt_idx = 0
@@ -465,7 +495,8 @@ def parse(files):
                     e = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                ts = _parse_ts(e.get("timestamp"))
+                # Cowork stamps records with `_audit_timestamp`; Claude Code uses `timestamp`.
+                ts = _parse_ts(e.get("timestamp") or e.get("_audit_timestamp"))
                 if ts:
                     ts_in_file.append(ts)
                     c.first_ts = ts if c.first_ts is None or ts < c.first_ts else c.first_ts
@@ -473,6 +504,16 @@ def parse(files):
                 msg = e.get("message") if isinstance(e.get("message"), dict) else {}
                 role = e.get("role") or msg.get("role") or e.get("type")
                 content = msg.get("content", e.get("content"))
+
+                # Cowork inlines subagent turns in the same file, marked by parent_tool_use_id.
+                # Those are the agent's own internal prompts and tool calls, not Felipe driving,
+                # so they must not count toward prompts, tool usage, or delegation. (Claude Code
+                # keeps subagent turns in separate /subagents/ files that discovery already drops.)
+                if e.get("parent_tool_use_id"):
+                    if role == "user":
+                        c.user_records += 1
+                        c.filtered["nested agent turns"] += 1
+                    continue
 
                 if role == "assistant":
                     if isinstance(content, list):
