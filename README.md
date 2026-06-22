@@ -24,6 +24,16 @@ folder), just run:
 One command, one finished report at `~/.claude/insight/ai_fluency_report.html`. Requires
 Python 3.8+ and Claude Code.
 
+### Uninstall
+
+```bash
+# Remove the skill, keep your data (transcript archive and last report)
+curl -fsSL https://raw.githubusercontent.com/Feloguarin/claude-insight/main/uninstall.sh | bash
+
+# Remove everything, including ~/.claude/insight/ and ~/.claude/insight-archive/
+curl -fsSL https://raw.githubusercontent.com/Feloguarin/claude-insight/main/uninstall.sh | bash -s -- --purge
+```
+
 ## 🚀 What you get
 
 - **A fluency score (0–100)** with a band — Operator → Developing → Proficient → Advanced → Expert — and what it means.
